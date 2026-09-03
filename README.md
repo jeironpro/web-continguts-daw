@@ -48,10 +48,16 @@ Las tarjetas abren los ficheros reales desde la propia carpeta del proyecto. Si 
 
 ### Regenerar el inventario
 
-Cuando cambien los materiales, regenera el inventario con:
+El inventario se genera desde la propia raíz del repositorio (contiene las carpetas de materiales):
 
 ```bash
-python3 tools/generate_inventory.py --materials /ruta/a/la/carpeta/de/materials
+python3 tools/generate_inventory.py --materials .
+```
+
+Los volcados SQL muy grandes se almacenan comprimidos (`.sql.gz`) para aligerar las clonaciones del repositorio; el visor los descomprime por streaming al abrirlos. Si regeneras desde la carpeta original de materiales (donde el volcado sigue en `.sql`), comprime ese fichero igual que en el repositorio antes de regenerar:
+
+```bash
+gzip -9 moduls_1er_curs_24_25/0484_bases_dades/activitats/ra3/dml_segona_part/practiques/fase_3/fase3_inserts.sql
 ```
 
 El generador no copia los ficheros: solo crea el catálogo con sus metadatos.
