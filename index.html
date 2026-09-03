@@ -30,9 +30,25 @@
             <h2 class="view-title" id="viewTitle">Tots els fitxers</h2>
             <p class="view-sub" id="viewSub"></p>
           </div>
-          <p class="view-count" id="viewCount" aria-live="polite"></p>
+          <div class="search" role="search">
+            <svg class="search-ico" viewBox="0 0 20 20" aria-hidden="true">
+              <circle cx="8.5" cy="8.5" r="5.5" fill="none" stroke="currentColor" stroke-width="2.4"/>
+              <line x1="12.8" y1="12.8" x2="17.5" y2="17.5" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>
+            </svg>
+            <input id="searchInput" type="search" placeholder="Cerca per nom, mòdul o format…"
+                   autocomplete="off" spellcheck="false" aria-label="Cerca per nom, mòdul o format">
+            <kbd aria-hidden="true">/</kbd>
+            <button type="button" class="search-clear hidden" id="searchClear" aria-label="Neteja la cerca">✕</button>
+          </div>
         </header>
+
         <section class="summary" id="summary" aria-label="Resum"></section>
+
+        <div class="meta-row">
+          <p class="view-count" id="viewCount" aria-live="polite"></p>
+          <div class="chips" id="chips" aria-label="Filtrar per format"></div>
+        </div>
+
         <section class="grid" id="grid" aria-live="polite"></section>
         <div class="empty hidden" id="empty">
           <p id="emptyMsg"></p>

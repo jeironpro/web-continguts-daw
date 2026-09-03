@@ -66,6 +66,29 @@
   const escapa = (s) =>
     String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
+  const normalitza = (s) =>
+    String(s)
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase();
+
+  const escRe = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+  /* Resalta les coincidències de la cerca dins d'un text */
+  const resalta = (texto, q) => {
+    if (!q) return escapa(texto);
+    const re = new RegExp(`(${escRe(q)})`, "ig");
+    let sortida = "";
+    let ultim = 0;
+    let m;
+    while ((m = re.exec(String(texto)))) {
+      sortida += escapa(texto.slice(ultim, m.index));
+      sortida += `<mark>${escapa(m[0])}</mark>`;
+      ultim = m.index + m[0].length;
+    }
+    return sortida + escapa(texto.slice(ultim));
+  };
+
   /* ------------------------------------------------------------
      Estat de navegació i filtratge
      ------------------------------------------------------------ */
@@ -73,6 +96,7 @@
     curs: null, // 1 | 2 | null
     modul: null, // modulId | null
     formats: new Set(), // extensions seleccionades
+    q: "", // text de cerca
   };
 
   const resetNavegacio = () => {
@@ -106,24 +130,40 @@
   }
   for (const llista of Object.values(modulsPerCurs)) {
     for (const m of llista) {
-      m.exts = Object.keys(m.formats).sort(
-        (a, b) => m.formats[b] - m.formats[a] || a.localeCompare(b)
-      );
+      m.exts = Object.keys(m.formats).sort((a, b) => m.formats[b] - m.formats[a] || a.localeCompare(b));
     }
   }
 
   const modulDe = (curs, id) => perModul.get(clauModul(curs, id));
 
   /* ------------------------------------------------------------
-     Filtratge
+     Filtratge (navegació + formats + cerca)
      ------------------------------------------------------------ */
-  const filtra = () =>
-    FITXERS.filter((f) => {
-      if (estat.curs !== null && f.curs !== estat.curs) return false;
-      if (estat.modul !== null && f.modulId !== estat.modul) return false;
+  const llistaContext = () =>
+    FITXERS.filter(
+      (f) =>
+        (estat.curs === null || f.curs === estat.curs) && (estat.modul === null || f.modulId === estat.modul)
+    );
+
+  const filtra = () => {
+    const q = normalitza(estat.q.trim());
+    return llistaContext().filter((f) => {
       if (estat.formats.size > 0 && !estat.formats.has(f.ext)) return false;
+      if (q) {
+        const pal = [
+          f.nom,
+          f.modul,
+          infoFormat(f.ext).label,
+          f.ext,
+          f.codi,
+        ]
+          .map(normalitza)
+          .join(" ");
+        if (!pal.includes(q)) return false;
+      }
       return true;
     });
+  };
 
   /* ------------------------------------------------------------
      Render del resum d'estadístiques (una sola vegada)
@@ -280,42 +320,46 @@
     const sub = $("#viewSub");
     const count = $("#viewCount");
 
-    const formatTitols = () =>
-      [...estat.formats]
-        .map((ext) => infoFormat(ext).label)
-        .sort()
-        .join(" + ");
+    const seleccionats = [...estat.formats];
+    const nSel = seleccionats.length;
+    const titolFormats = () => seleccionats.map((ext) => infoFormat(ext).label).sort().join(" + ");
+    const plural = (n, s1, sn) => (n === 1 ? s1 : sn);
 
     let titolText = "Tots els fitxers";
-    let subParts = [];
-    if (estat.formats.size > 0 && estat.modul) {
-      titolText = formatTitols();
-      subParts.push(modulDe(estat.curs, estat.modul).label);
+    let subText = "";
+
+    if (estat.modul && nSel > 0) {
+      titolText = titolFormats();
+      subText = `${CURSA[estat.curs].nom} · ${modulDe(estat.curs, estat.modul).label}`;
     } else if (estat.modul) {
-      titolText = modulDe(estat.curs, estat.modul).label;
+      const m = modulDe(estat.curs, estat.modul);
+      titolText = m.label;
+      subText = `${CURSA[estat.curs].nom} · ${m.exts.length} ${plural(m.exts.length, "format", "formats")}`;
     } else if (estat.curs) {
       titolText = CURSA[estat.curs].nom;
-    }
-    if (estat.curs === null) {
-      sub.textContent = "Visor dels materials del CFGS Desenvolupament d'Aplicacions Web";
-    } else if (estat.modul === null) {
-      const extsCurs = new Set();
-      for (const m of modulsPerCurs[estat.curs]) {
-        for (const ext of Object.keys(m.formats)) extsCurs.add(ext);
-      }
-      sub.textContent = `${modulsPerCurs[estat.curs].length} mòduls · ${extsCurs.size} formats`;
-    } else if (estat.formats.size === 0) {
-      const m = modulDe(estat.curs, estat.modul);
-      sub.textContent = `${CURSA[estat.curs].nom} · ${m.exts.length} formats`;
+      subText = `${modulsPerCurs[estat.curs].length} ${plural(
+        modulsPerCurs[estat.curs].length,
+        "mòdul",
+        "mòduls"
+      )}`;
+      if (nSel > 0) subText += ` · ${nSel} ${plural(nSel, "format seleccionat", "formats seleccionats")}`;
+    } else if (nSel > 0) {
+      titolText = titolFormats();
+      subText = `${nSel} ${plural(nSel, "format seleccionat", "formats seleccionats")} a tots els cursos`;
     } else {
-      sub.textContent = subParts.join(" · ");
+      subText = "Visor dels materials del CFGS Desenvolupament d'Aplicacions Web";
     }
+
+    if (estat.q) subText = subText ? `${subText} · cerca «${estat.q.trim()}»` : `Cerca: «${estat.q.trim()}»`;
+
     títol.textContent = titolText;
+    sub.textContent = subText;
     count.textContent = `${llista.length.toLocaleString("ca-ES")} fitxers`;
   };
 
   const renderGraella = (llista) => {
     const grid = $("#grid");
+    const q = estat.q.trim();
     grid.innerHTML = llista
       .map((f, i) => {
         const info = infoFormat(f.ext);
@@ -329,22 +373,113 @@
               <span class="card-size" style="color:${colorText}">${formatBytes(f.mida)}</span>
             </span>
             <span class="card-foot">
-              <span class="card-modul">${escapa(f.modul)}</span>
-              <span class="card-nom">${escapa(f.nom)}</span>
+              <span class="card-modul">${resalta(f.modul, q)}</span>
+              <span class="card-nom">${resalta(f.nom, q)}</span>
             </span>
           </button>`;
       })
       .join("");
   };
 
+  /* ------------------------------------------------------------
+     Chips de format (filtre ràpid dins del context actual)
+     ------------------------------------------------------------ */
+  const renderChips = (llista) => {
+    const comptes = {};
+    for (const f of llista) comptes[f.ext] = (comptes[f.ext] || 0) + 1;
+    const exts = Object.keys(comptes).sort(
+      (a, b) => comptes[b] - comptes[a] || infoFormat(a).label.localeCompare(infoFormat(b).label)
+    );
+    const chips = $("#chips");
+    chips.innerHTML = exts
+      .map((ext) => {
+        const info = infoFormat(ext);
+        const actiu = estat.formats.has(ext);
+        return `
+          <button type="button" class="chip ${actiu ? "active" : ""}" data-ext="${escapa(ext)}"
+            style="--c:${info.color}" aria-pressed="${actiu}">
+            <span class="chip-dot" aria-hidden="true"></span>
+            <span class="chip-lbl">${escapa(info.label)}</span>
+            <span class="chip-count">${comptes[ext]}</span>
+          </button>`;
+      })
+      .join("");
+  };
+
+  $("#chips").addEventListener("click", (e) => {
+    const btn = e.target.closest("[data-ext]");
+    if (!btn) return;
+    const ext = btn.dataset.ext;
+    if (estat.formats.has(ext)) estat.formats.delete(ext);
+    else estat.formats.add(ext);
+    actualitzaArbre();
+    renderVista();
+  });
+
+  /* ------------------------------------------------------------
+     Cercador
+     ------------------------------------------------------------ */
+  const input = $("#searchInput");
+  const netejaBtn = $("#searchClear");
+  let debounce;
+
+  const actualitzaCerca = () => {
+    const buit = input.value === "";
+    netejaBtn.classList.toggle("hidden", buit);
+  };
+
+  input.addEventListener("input", () => {
+    clearTimeout(debounce);
+    debounce = setTimeout(() => {
+      estat.q = input.value;
+      renderVista();
+    }, 120);
+  });
+
+  input.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") {
+      if (input.value !== "") {
+        input.value = "";
+        estat.q = "";
+        renderVista();
+      } else {
+        input.blur();
+      }
+    }
+  });
+
+  const netejaCerca = () => {
+    input.value = "";
+    estat.q = "";
+    renderVista();
+    input.focus();
+  };
+  netejaBtn.addEventListener("click", netejaCerca);
+
+  document.addEventListener("keydown", (e) => {
+    if (e.key !== "/") return;
+    const actiu = document.activeElement;
+    if (actiu && (/^(INPUT|TEXTAREA|SELECT)$/.test(actiu.tagName) || actiu.isContentEditable)) return;
+    e.preventDefault();
+    input.focus();
+    input.select();
+  });
+
+  /* ------------------------------------------------------------
+     Estat buit
+     ------------------------------------------------------------ */
   const renderBuit = (llista) => {
     const buit = $("#empty");
     if (llista.length === 0) {
       buit.classList.remove("hidden");
-      $("#emptyMsg").textContent =
-        FITXERS.length === 0
-          ? "No s'ha pogut carregar l'inventari (data/fitxers.js)."
-          : "No s'han trobat fitxers amb aquests filtres.";
+      const msg = $("#emptyMsg");
+      if (FITXERS.length === 0) {
+        msg.textContent = "No s'ha pogut carregar l'inventari (data/fitxers.js).";
+      } else if (estat.q) {
+        msg.textContent = `No s'han trobat resultats per a «${estat.q.trim()}». Prova amb un altre text o treu filtres.`;
+      } else {
+        msg.textContent = "No s'han trobat fitxers amb aquests filtres.";
+      }
     } else {
       buit.classList.add("hidden");
     }
@@ -352,7 +487,9 @@
 
   const renderVista = () => {
     const llista = filtra();
+    actualitzaCerca();
     renderMeta(llista);
+    renderChips(llistaContext());
     renderGraella(llista);
     renderBuit(llista);
   };
@@ -365,6 +502,8 @@
     renderVista();
     $("#emptyReset").addEventListener("click", () => {
       resetNavegacio();
+      input.value = "";
+      estat.q = "";
       actualitzaArbre();
       renderVista();
     });
