@@ -38,6 +38,7 @@ const FORMATS = {
     md: { color: "#3cbdb1", viewer: "text" },
     txt: { color: "#f5b83c", viewer: "text" },
     sql: { color: "#1769e8", viewer: "code" },
+    gz: { color: "#1769e8", viewer: "gzip" },
     py: { color: "#4a9fd4", viewer: "code" },
     js: { color: "#f5b83c", viewer: "code" },
     jsx: { color: "#c8e832", viewer: "code" },
@@ -71,17 +72,23 @@ const DEBOUNCE_MS = 120;
 // fetch y se muestra en un iframe para no bloquear el navegador.
 const TEXT_PREVIEW_LIMIT = 1_500_000;
 
+// Adelanto (bytes) que se descomprime y muestra de un fichero
+// .sql.gz; evita volcar el fichero entero en el DOM.
+const GZIP_PREVIEW_LIMIT = 262_144;
+
 // Espacio de nombres de SVG para crear iconos de forma segura.
 const SVG_NAMESPACE = "http://www.w3.org/2000/svg";
 
-// Carpetas candidatas donde puede vivir la carpeta de materiales:
-// la web puede publicarse fuera de ella y los ficheros reales no
-// se suben al repositorio (solo se versiona el inventario).
+// Carpetas candidatas donde puede vivir la carpeta de materiales.
+// La primera ("") es la raíz del propio repositorio, que ya
+// contiene los materiales (la web es autocontenida). El resto
+// son rutas de la máquina de desarrollo por si se sirve la web
+// desde otra carpeta y los materiales están junto a ella.
 const MATERIAL_DIRS = [
+    "",
     "../../../Descargas/desenvolupament_aplicacions_web",
     "../Descargas/desenvolupament_aplicacions_web",
     "/Descargas/desenvolupament_aplicacions_web",
-    "",
 ];
 
 /* ------------------------------------------------------------
@@ -237,10 +244,13 @@ const materialsProbe = (async () => {
     if (FILES.length === 0) return { base: "", ok: false };
     const sample = FILES[0].path;
     for (const candidate of MATERIAL_DIRS) {
-        const url = `${candidate.replace(/\/$/, "")}/${encodePath(sample)}`;
+        const prefix = candidate.replace(/\/+$/, "");
+        // Con candidato vacío la URL es relativa a la carpeta del
+        // proyecto (raíz del repositorio, donde viven los materiales).
+        const url = prefix ? `${prefix}/${encodePath(sample)}` : encodePath(sample);
         try {
             const response = await fetch(url, { method: "HEAD" });
-            if (response.ok) return { base: candidate.replace(/\/$/, ""), ok: true };
+            if (response.ok) return { base: prefix, ok: true };
         } catch (_) {
             // Silencioso: se prueba el siguiente candidato.
         }
@@ -939,6 +949,63 @@ const renderViewer = async (file, materials, token) => {
                 createEl("p", { class: "audio-note", text: t("viewer.audioNote", { label: info.label, size: formatBytes(file.size) }) }),
             ])
         );
+        return;
+    }
+
+    // GZip (p. ej. volcados SQL grandes): se descomprime por
+    // streaming y solo se muestra un adelanto del texto para no
+    // volcar el fichero completo en el DOM.
+    if (type === "gzip") {
+        if (typeof DecompressionStream === "undefined") {
+            viewer.textContent = "";
+            viewer.append(officeContent(info));
+            return;
+        }
+        try {
+            const response = await fetch(url);
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            const reader = response.body
+                .pipeThrough(new DecompressionStream("gzip"))
+                .getReader();
+            const decoder = new TextDecoder();
+            let preview = "";
+            let truncated = false;
+            while (!truncated) {
+                const { value, done } = await reader.read();
+                if (done) break;
+                const chunkText = decoder.decode(value, { stream: true });
+                const room = GZIP_PREVIEW_LIMIT - preview.length;
+                if (chunkText.length > room) {
+                    preview += chunkText.slice(0, Math.max(0, room));
+                    truncated = true;
+                } else {
+                    preview += chunkText;
+                }
+            }
+            // Si se cortó el adelanto se cancela el flujo; si no,
+            // se descarga el tramo final del decodificador.
+            if (truncated) reader.cancel().catch(() => {});
+            else preview += decoder.decode();
+
+            if (token !== requestToken) return;
+            viewer.textContent = "";
+            const pre = createEl("pre", { class: "code-view" }, []);
+            const code = createEl("code", {});
+            code.textContent = preview;
+            pre.append(code);
+            viewer.append(pre);
+            if (truncated) {
+                viewer.append(createEl("p", { class: "code-note", text: t("viewer.gzipNote") }));
+            }
+        } catch (error) {
+            // Si la descarga o la descompresión fallan (p. ej.
+            // gzip corrupto), se muestra la ficha de descarga y se
+            // registra el motivo en la consola.
+            console.error("No se pudo previsualizar el fichero comprimido:", error);
+            if (token !== requestToken) return;
+            viewer.textContent = "";
+            viewer.append(officeContent(info));
+        }
         return;
     }
 

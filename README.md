@@ -34,26 +34,30 @@ Para traducir o ajustar un texto solo hay que editar el JSON correspondiente; no
 
 La web usa módulos ES (import/export), por lo que hay que servirla por HTTP y no se puede abrir `index.html` directamente con doble clic.
 
-El inventario de ficheros (`data/files.js`) se genera a partir de la carpeta de materiales del profesorado, que no forma parte de este repositorio. Las tarjetas abren los ficheros reales solo cuando la carpeta de materiales es accesible desde la misma máquina o servidor.
+Los materiales docentes completos (`moduls_1er_curs_24_25/` y `moduls_2n_curs_25_26/`) están incluidos en el repositorio, de modo que la web es autocontenida: basta con servir la carpeta del proyecto.
 
-Para servir la web y los materiales desde una misma carpeta raíz:
-
-1. Ejecuta un servidor estático en una carpeta que contenga tanto la web como los materiales (por ejemplo, la carpeta raíz del usuario):
+1. Ejecuta un servidor estático en la carpeta del proyecto:
 
    ```bash
-   cd ~ && python3 -m http.server 8000
+   cd web-continguts-daw && python3 -m http.server 8000
    ```
 
-2. Abre `http://localhost:8000/.../web-continguts-daw/` en el navegador.
+2. Abre `http://localhost:8000/` en el navegador.
 
-3. Si los materiales están en otra ubicación, edita la constante `MATERIAL_DIRS` de `app.js` para indicar la ruta correcta.
+Las tarjetas abren los ficheros reales desde la propia carpeta del proyecto. Si en alguna instalación los materiales estuvieran en otra ubicación, se puede ajustar la constante `MATERIAL_DIRS` de `app.js` para indicar la ruta.
 
 ### Regenerar el inventario
 
-Cuando cambien los materiales, regenera el inventario con:
+El inventario se genera desde la propia raíz del repositorio (contiene las carpetas de materiales):
 
 ```bash
-python3 tools/generate_inventory.py --materials /ruta/a/la/carpeta/de/materials
+python3 tools/generate_inventory.py --materials .
+```
+
+Los volcados SQL muy grandes se almacenan comprimidos (`.sql.gz`) para aligerar las clonaciones del repositorio; el visor los descomprime por streaming al abrirlos. Si regeneras desde la carpeta original de materiales (donde el volcado sigue en `.sql`), comprime ese fichero igual que en el repositorio antes de regenerar:
+
+```bash
+gzip -9 moduls_1er_curs_24_25/0484_bases_dades/activitats/ra3/dml_segona_part/practiques/fase_3/fase3_inserts.sql
 ```
 
 El generador no copia los ficheros: solo crea el catálogo con sus metadatos.
@@ -69,6 +73,8 @@ El generador no copia los ficheros: solo crea el catálogo con sus metadatos.
 | `lang/` | Diccionarios JSON de textos por idioma (ca, es, en). |
 | `data/files.js` | Inventario generado de ficheros de los materiales. |
 | `tools/generate_inventory.py` | Generador del inventario a partir de la carpeta de materiales. |
+| `moduls_1er_curs_24_25/` | Materiales docentes completos del primer curso. |
+| `moduls_2n_curs_25_26/` | Materiales docentes completos del segundo curso. |
 | `favicon.svg` | Icono de la página y de la marca del panel lateral. |
 
 ## Licencia
