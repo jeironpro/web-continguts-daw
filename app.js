@@ -76,6 +76,16 @@ const TEXT_PREVIEW_LIMIT = 1_500_000;
 // .sql.gz; evita volcar el fichero entero en el DOM.
 const GZIP_PREVIEW_LIMIT = 262_144;
 
+// Duración (ms) de la animación de entrada de las tarjetas.
+const GRID_ANIMATION_MS = 320;
+
+// Retardo acumulado máximo (ms) del efecto escalonado: evita que
+// las tarjetas de una vista muy larga tarden demasiado en entrar.
+const GRID_STAGGER_MS = 300;
+
+// Retardo (ms) que suma cada tarjeta a la siguiente en el escalonado.
+const GRID_STAGGER_STEP_MS = 12;
+
 // Espacio de nombres de SVG para crear iconos de forma segura.
 const SVG_NAMESPACE = "http://www.w3.org/2000/svg";
 
@@ -433,6 +443,10 @@ const buildTree = (tree) => {
             ]
         );
         const body = createEl("div", { class: "course-body" });
+        // El contenido va dentro de un envoltorio: así la transición
+        // de altura (rejilla 0fr -> 1fr) se anima con suavidad y el
+        // borde/margen del árbol no queda visible al plegarse.
+        const bodyInner = createEl("div", { class: "course-body-inner" });
 
         for (const mod of modules) {
             const moduleChildren = [];
@@ -441,7 +455,7 @@ const buildTree = (tree) => {
                 createEl("span", { class: "tree-lbl", text: mod.label }),
                 createEl("span", { class: "tree-count", text: String(mod.count) })
             );
-            body.append(
+            bodyInner.append(
                 createEl("button", {
                     type: "button",
                     class: "tree-btn module-btn",
@@ -468,9 +482,10 @@ const buildTree = (tree) => {
                     )
                 );
             }
-            body.append(formatList);
+            bodyInner.append(formatList);
         }
 
+        body.append(bodyInner);
         section.append(header, body);
         tree.append(section);
     }
@@ -530,7 +545,7 @@ const handleTreeClick = (tree, event) => {
                 setCourseOpen(tree, course, false);
             }
             refreshTree(tree);
-            renderView();
+            renderView(true);
             return;
         }
         state.course = course;
@@ -569,7 +584,7 @@ const handleTreeClick = (tree, event) => {
         button.scrollIntoView({ block: "nearest" });
     }
     refreshTree(tree);
-    renderView();
+    renderView(true);
 };
 
 /* ------------------------------------------------------------
@@ -686,6 +701,16 @@ const renderGrid = (files) => {
                 dataset: { index: String(index), ext: file.ext },
                 title: `${file.name} · ${file.module}`,
                 "aria-label": t("card.viewAria", { name: file.name, label: info.label }),
+                // Retardo escalonado de la animación de entrada; se
+                // usa también al buscar, pero solo se dispara cuando
+                // la cuadrícula lleva la clase "animating" (se usa el
+                // nombre kebab-case porque setProperty no admite
+                // camelCase).
+                style: {
+                    "--c": info.color,
+                    "--tc": textColor,
+                    "animation-delay": `${Math.min(index * GRID_STAGGER_STEP_MS, GRID_STAGGER_MS)}ms`,
+                },
             },
             [
                 createEl("span", { class: "card-visual", style: { "--c": info.color, "--tc": textColor } }, [
@@ -718,13 +743,38 @@ const renderEmpty = (files) => {
     }
 };
 
-// Renderiza la vista completa a partir del estado actual.
-const renderView = () => {
+// Temporizador que retira la clase de animación de la cuadrícula
+// una vez terminado el efecto escalonado de las tarjetas.
+let gridAnimationTimer;
+
+// Renderiza la vista completa a partir del estado actual. Con
+// "animate" a true (cambio de ámbito de navegación) se dispara la
+// animación de entrada de las tarjetas; la búsqueda nunca anima.
+const renderView = (animate = false) => {
+    const grid = $(".grid");
+    // Se retira siempre la clase de animación: la búsqueda no debe
+    // re-dispararla y el próximo cambio de ámbito la reinicia limpio.
+    grid.classList.remove("animating");
+    window.clearTimeout(gridAnimationTimer);
+
     currentList = applyFilters();
     renderHeader(currentList);
     renderChips(contextFiles());
     renderGrid(currentList);
     renderEmpty(currentList);
+
+    if (animate) {
+        // Reflow forzado para reiniciar la animación aunque la clase
+        // acabe de quitarse en el mismo repintado.
+        void grid.offsetWidth;
+        grid.classList.add("animating");
+        // Al terminar se retira la clase: con fill-mode "both" la
+        // animación bloquearía el transform del hover de las tarjetas.
+        gridAnimationTimer = window.setTimeout(
+            () => grid.classList.remove("animating"),
+            GRID_ANIMATION_MS + GRID_STAGGER_MS
+        );
+    }
 };
 
 /* ------------------------------------------------------------
@@ -1267,7 +1317,7 @@ const init = async () => {
         if (state.formats.has(ext)) state.formats.delete(ext);
         else state.formats.add(ext);
         refreshTree(tree);
-        renderView();
+        renderView(true);
     });
 
     // Clicks sobre las tarjetas: abren el visor del fichero.
@@ -1314,7 +1364,7 @@ const init = async () => {
         input.value = "";
         state.query = "";
         refreshTree(tree);
-        renderView();
+        renderView(true);
     });
 
     // Modal: cierre por botón, fondo o teclado.
