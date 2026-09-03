@@ -517,11 +517,20 @@ const handleTreeClick = (tree, event) => {
         resetNavigation();
     } else if (action === "course") {
         const section = button.closest(".course");
-        // Si el curso ya está seleccionado y abierto, un segundo
-        // clic lo repliega sin cambiar la selección.
-        if (state.course === course && state.module === null && section.classList.contains("open")) {
-            setCourseOpen(tree, course, false);
+        // Clic sobre el curso ya activo: si hay un módulo abierto
+        // dentro, se sube al curso; si ya estamos en el curso, se
+        // cierra (se vuelve a todos los ficheros y se repliega).
+        if (state.course === course) {
+            if (state.module !== null) {
+                state.module = null;
+                state.formats.clear();
+            } else {
+                state.course = null;
+                state.formats.clear();
+                setCourseOpen(tree, course, false);
+            }
             refreshTree(tree);
+            renderView();
             return;
         }
         state.course = course;
@@ -529,16 +538,34 @@ const handleTreeClick = (tree, event) => {
         state.formats.clear();
         setCourseOpen(tree, course, true);
     } else if (action === "module") {
-        state.course = course;
-        state.module = button.dataset.module;
-        state.formats.clear();
-        setCourseOpen(tree, course, true);
+        // Un segundo clic en el módulo activo lo cierra: se vuelve
+        // al ámbito del curso (sin borrar la expansión del árbol).
+        if (state.course === course && state.module === button.dataset.module) {
+            state.module = null;
+            state.formats.clear();
+        } else {
+            state.course = course;
+            state.module = button.dataset.module;
+            state.formats.clear();
+            setCourseOpen(tree, course, true);
+        }
         button.scrollIntoView({ block: "nearest" });
     } else if (action === "format") {
-        state.course = course;
-        state.module = button.dataset.module;
-        state.formats = new Set([button.dataset.ext]);
-        setCourseOpen(tree, course, true);
+        // Si el formato pulsado es exactamente el activo, un nuevo
+        // clic lo cierra y vuelve al ámbito del módulo.
+        const formatActive =
+            state.course === course &&
+            state.module === button.dataset.module &&
+            state.formats.size === 1 &&
+            state.formats.has(button.dataset.ext);
+        if (formatActive) {
+            state.formats.clear();
+        } else {
+            state.course = course;
+            state.module = button.dataset.module;
+            state.formats = new Set([button.dataset.ext]);
+            setCourseOpen(tree, course, true);
+        }
         button.scrollIntoView({ block: "nearest" });
     }
     refreshTree(tree);
