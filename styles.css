@@ -577,6 +577,24 @@ mark {
     line-height: 1.3;
 }
 
+/* Animación de entrada de las tarjetas al cambiar de ámbito de
+   navegación (curso, módulo o formato): subida suave con un leve
+   escalado, escalonada por tarjeta mediante animation-delay. */
+@keyframes card-in {
+    from {
+        opacity: 0;
+        transform: translateY(10px) scale(0.97);
+    }
+    to {
+        opacity: 1;
+        transform: none;
+    }
+}
+
+.grid.animating .card {
+    animation: card-in 320ms ease both;
+}
+
 /* ------------------------------------------------------------
    Árbol de navegación (panel lateral)
    ------------------------------------------------------------ */
@@ -680,16 +698,41 @@ mark {
 }
 
 .course-body {
-    display: none;
+    display: grid;
+    grid-template-rows: 0fr;
+    transition: grid-template-rows 240ms ease;
+}
+
+/* Contenido interno de cada curso: lleva el margen, el borde y el
+   desbordamiento oculto para que la altura animada sea limpia y el
+   borde del árbol no quede visible al plegar la sección. */
+.course-body-inner {
+    overflow: hidden;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
     margin: 2px 0 4px 13px;
     padding-left: 9px;
     border-left: 2px solid color-mix(in srgb, var(--ink) 20%, transparent);
-    flex-direction: column;
-    gap: 2px;
 }
 
 .course.open > .course-body {
-    display: flex;
+    grid-template-rows: 1fr;
+}
+
+/* Usuarios que prefieren menos movimiento: se desactivan las
+   transiciones del árbol y la animación de entrada de tarjetas. */
+@media (prefers-reduced-motion: reduce) {
+    .course-body {
+        transition: none;
+    }
+    .caret {
+        transition: none;
+    }
+    .grid.animating .card {
+        animation: none;
+    }
 }
 
 .module-btn {
