@@ -26,12 +26,18 @@
     <main class="main">
       <div class="main-inner">
         <header class="main-head">
-          <h2 class="view-title" id="viewTitle">Tots els fitxers</h2>
-          <p class="view-sub" id="viewSub"></p>
+          <div class="head-text">
+            <h2 class="view-title" id="viewTitle">Tots els fitxers</h2>
+            <p class="view-sub" id="viewSub"></p>
+          </div>
+          <p class="view-count" id="viewCount" aria-live="polite"></p>
         </header>
         <section class="summary" id="summary" aria-label="Resum"></section>
         <section class="grid" id="grid" aria-live="polite"></section>
-        <div class="empty hidden" id="empty"></div>
+        <div class="empty hidden" id="empty">
+          <p id="emptyMsg"></p>
+          <button type="button" class="btn" id="emptyReset">Mostra-ho tot</button>
+        </div>
       </div>
     </main>
   </div>
