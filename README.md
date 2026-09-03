@@ -15,6 +15,11 @@ materials del professorat, que **no** forma part d'aquest repositori; les target
 obren els fitxers reals només quan els materials són accessibles des de la
 mateixa màquina/servidor.
 
+La interfície es pot mostrar en **català, castellà o anglès** amb el selector del
+panell lateral; la preferència es desa al navegador i els textos es tradueixen
+des de `i18n.js` (els noms de fitxers i de mòduls del material es mantenen
+intactes).
+
 1. Serveix amb un servidor estàtic una carpeta que contingui tant la web com
    els materials (per exemple, la carpeta arrel de l'usuari):
 

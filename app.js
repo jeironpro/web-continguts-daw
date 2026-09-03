@@ -5,48 +5,48 @@
    - Los identificadores (variables, funciones, clases) van en
      inglés.
    - Los comentarios van en español.
-   - Los textos visibles para el usuario se mantienen en
-     catalán (contenido de la web).
+   - Los textos visibles se traducen a través de i18n.js
+     (ca/es/en); los nombres de ficheros y de módulos del
+     inventario se mantienen intactos.
    - Sangría fija de 4 espacios.
    ============================================================ */
 import { FILES } from "./data/files.js";
+
+// Internacionalización: diccionario y helpers por idioma.
+import { current as currentLang, locale, setLanguage, translate as t } from "./i18n.js";
 
 /* ------------------------------------------------------------
    Constantes globales
    ------------------------------------------------------------ */
 
-// Nombres mostrados de los cursos; la clave coincide con el
-// campo "course" de cada fichero del inventario.
-const COURSE_NAMES = {
-    1: "1r curs",
-    2: "2n curs",
-};
+// Nombre visible de cada curso (traducido según el idioma).
+const courseName = (course) => t(`course.${course}`);
 
-// Tabla de formatos: etiqueta visible, color (paleta depobudget)
-// y tipo de visor que se usará en el modal.
+// Tabla de formatos: color (paleta depobudget) y tipo de visor.
+// Las etiquetas se traducen en i18n.js con la clave "fmt.<ext>".
 const FORMATS = {
-    pdf: { label: "PDF", color: "#d95c5c", viewer: "pdf" },
-    doc: { label: "Word (DOC)", color: "#4a9fd4", viewer: "office" },
-    docx: { label: "Word", color: "#1769e8", viewer: "office" },
-    odt: { label: "OpenDocument", color: "#3cbdb1", viewer: "office" },
-    pptx: { label: "PowerPoint", color: "#f5b83c", viewer: "office" },
-    xlsx: { label: "Excel", color: "#c8e832", viewer: "office" },
-    png: { label: "Imatge PNG", color: "#7c3aed", viewer: "image" },
-    jpg: { label: "Imatge JPG", color: "#ff5b45", viewer: "image" },
-    svg: { label: "Imatge SVG", color: "#4a9fd4", viewer: "image" },
-    mp3: { label: "Àudio MP3", color: "#7c3aed", viewer: "audio" },
-    md: { label: "Markdown", color: "#3cbdb1", viewer: "text" },
-    txt: { label: "Text", color: "#f5b83c", viewer: "text" },
-    sql: { label: "SQL", color: "#1769e8", viewer: "code" },
-    py: { label: "Python", color: "#4a9fd4", viewer: "code" },
-    js: { label: "JavaScript", color: "#f5b83c", viewer: "code" },
-    jsx: { label: "JSX (React)", color: "#c8e832", viewer: "code" },
-    java: { label: "Java", color: "#ff5b45", viewer: "code" },
-    css: { label: "CSS", color: "#7c3aed", viewer: "code" },
-    html: { label: "HTML", color: "#ff5b45", viewer: "code" },
-    json: { label: "JSON", color: "#f5b83c", viewer: "code" },
-    xml: { label: "XML", color: "#3cbdb1", viewer: "code" },
-    ipynb: { label: "Notebook", color: "#1769e8", viewer: "code" },
+    pdf: { color: "#d95c5c", viewer: "pdf" },
+    doc: { color: "#4a9fd4", viewer: "office" },
+    docx: { color: "#1769e8", viewer: "office" },
+    odt: { color: "#3cbdb1", viewer: "office" },
+    pptx: { color: "#f5b83c", viewer: "office" },
+    xlsx: { color: "#c8e832", viewer: "office" },
+    png: { color: "#7c3aed", viewer: "image" },
+    jpg: { color: "#ff5b45", viewer: "image" },
+    svg: { color: "#4a9fd4", viewer: "image" },
+    mp3: { color: "#7c3aed", viewer: "audio" },
+    md: { color: "#3cbdb1", viewer: "text" },
+    txt: { color: "#f5b83c", viewer: "text" },
+    sql: { color: "#1769e8", viewer: "code" },
+    py: { color: "#4a9fd4", viewer: "code" },
+    js: { color: "#f5b83c", viewer: "code" },
+    jsx: { color: "#c8e832", viewer: "code" },
+    java: { color: "#ff5b45", viewer: "code" },
+    css: { color: "#7c3aed", viewer: "code" },
+    html: { color: "#ff5b45", viewer: "code" },
+    json: { color: "#f5b83c", viewer: "code" },
+    xml: { color: "#3cbdb1", viewer: "code" },
+    ipynb: { color: "#1769e8", viewer: "code" },
 };
 
 // Colores de reserva para formatos desconocidos, repartidos de
@@ -97,14 +97,14 @@ const $$ = (selector, element = document) => [...element.querySelectorAll(select
 // catalogada, genera una ficha de reserva con color estable.
 const formatInfo = (ext) => {
     const known = FORMATS[ext];
-    if (known) return known;
+    if (known) return { ...known, label: t(`fmt.${ext}`) };
     let checksum = 0;
     for (const char of ext) checksum += char.charCodeAt(0);
     return { label: ext.toUpperCase(), color: FALLBACK_PALETTE[checksum % FALLBACK_PALETTE.length], viewer: "file" };
 };
 
 // Formatea un número de bytes en una unidad legible (B, KB, MB…)
-// usando coma decimal, como se hace en catalán.
+// con el separador decimal del idioma activo.
 const formatBytes = (bytes) => {
     if (!Number.isFinite(bytes) || bytes < 0) return "—";
     const units = ["B", "KB", "MB", "GB"];
@@ -115,7 +115,10 @@ const formatBytes = (bytes) => {
         unitIndex += 1;
     }
     const digits = value >= 100 || unitIndex === 0 ? 0 : 1;
-    return `${value.toFixed(digits).replace(".", ",")} ${units[unitIndex]}`;
+    return `${value.toLocaleString(locale(), {
+        minimumFractionDigits: digits,
+        maximumFractionDigits: digits,
+    })} ${units[unitIndex]}`;
 };
 
 // Normaliza un texto para comparar: quita tildes y pasa a
@@ -132,6 +135,13 @@ const escapeRegex = (text) => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 // Decide el color del texto sobre un fondo de color dado:
 // los colores claros usan tinta oscura y el resto, blanco.
 const textColorFor = (color) => (DARK_TEXT_COLORS.has(color) ? "var(--ink)" : "#ffffff");
+
+// Devuelve la palabra en singular/plural correcta según el
+// idioma activo a partir de una clave base ("module.one/many").
+const pluralWord = (count, baseKey) => t(count === 1 ? `${baseKey}.one` : `${baseKey}.many`);
+
+// Formatea un contador con el separador de miles del idioma.
+const countNumber = (count) => count.toLocaleString(locale());
 
 /* ------------------------------------------------------------
    Construcción de DOM (renderizado seguro, sin innerHTML)
@@ -360,11 +370,11 @@ const renderSummary = () => {
     const totalSize = FILES.reduce((acc, file) => acc + (file.size || 0), 0);
 
     const stats = [
-        { number: FILES.length.toLocaleString("ca-ES"), label: "fitxers" },
-        { number: formatCount.toLocaleString("ca-ES"), label: "formats" },
-        { number: moduleCount.toLocaleString("ca-ES"), label: "mòduls" },
-        { number: courseCount.toLocaleString("ca-ES"), label: "cursos" },
-        { number: formatBytes(totalSize), label: "de material" },
+        { number: countNumber(FILES.length), label: t("summary.files") },
+        { number: countNumber(formatCount), label: t("summary.formats") },
+        { number: countNumber(moduleCount), label: t("summary.modules") },
+        { number: countNumber(courseCount), label: t("summary.courses") },
+        { number: formatBytes(totalSize), label: t("summary.material") },
     ];
 
     for (const stat of stats) {
@@ -389,7 +399,7 @@ const buildTree = (tree) => {
     const rootButton = createEl(
         "button",
         { type: "button", class: "tree-btn", dataset: { action: "root" }, "aria-current": "true" },
-        [gridIcon(), createEl("span", { class: "tree-lbl", text: "Tots els fitxers" }), createEl("span", { class: "tree-count", text: String(FILES.length) })]
+        [gridIcon(), createEl("span", { class: "tree-lbl", text: t("tree.allFiles") }), createEl("span", { class: "tree-count", text: String(FILES.length) })]
     );
     tree.append(rootButton, createEl("div", { class: "tree-sep", role: "presentation" }));
 
@@ -408,7 +418,7 @@ const buildTree = (tree) => {
             },
             [
                 caretIcon(),
-                createEl("span", { class: "tree-lbl", text: COURSE_NAMES[course] }),
+                createEl("span", { class: "tree-lbl", text: courseName(course) }),
                 createEl("span", { class: "tree-count", text: String(total) }),
             ]
         );
@@ -539,38 +549,44 @@ const renderHeader = (files) => {
     const selectedFormats = [...state.formats];
     const selectedCount = selectedFormats.length;
     const formatsTitle = () => selectedFormats.map((ext) => formatInfo(ext).label).sort().join(" + ");
-    const pluralize = (count, singular, plural) => (count === 1 ? singular : plural);
 
-    let titleText = "Tots els fitxers";
+    let titleText = t("tree.allFiles");
     let subtitleText = "";
 
     if (state.module && selectedCount > 0) {
         titleText = formatsTitle();
-        subtitleText = `${COURSE_NAMES[state.course]} · ${getModule(state.course, state.module).label}`;
+        subtitleText = `${courseName(state.course)} · ${getModule(state.course, state.module).label}`;
     } else if (state.module) {
         const mod = getModule(state.course, state.module);
         titleText = mod.label;
-        subtitleText = `${COURSE_NAMES[state.course]} · ${mod.extensions.length} ${pluralize(mod.extensions.length, "format", "formats")}`;
+        subtitleText = `${courseName(state.course)} · ${countNumber(mod.extensions.length)} ${pluralWord(mod.extensions.length, "format")}`;
     } else if (state.course) {
-        titleText = COURSE_NAMES[state.course];
-        subtitleText = `${modulesByCourse[state.course].length} ${pluralize(modulesByCourse[state.course].length, "mòdul", "mòduls")}`;
-        if (selectedCount > 0) subtitleText += ` · ${selectedCount} ${pluralize(selectedCount, "format seleccionat", "formats seleccionats")}`;
+        titleText = courseName(state.course);
+        subtitleText = `${countNumber(modulesByCourse[state.course].length)} ${pluralWord(modulesByCourse[state.course].length, "module")}`;
+        if (selectedCount > 0) {
+            subtitleText += ` · ${countNumber(selectedCount)} ${pluralWord(selectedCount, "selectedFormat")}`;
+        }
     } else if (selectedCount > 0) {
         titleText = formatsTitle();
-        subtitleText = `${selectedCount} ${pluralize(selectedCount, "format seleccionat", "formats seleccionats")} a tots els cursos`;
+        subtitleText = t("header.acrossCourses", {
+            count: countNumber(selectedCount),
+            label: pluralWord(selectedCount, "selectedFormat"),
+        });
     } else {
-        subtitleText = "Visor dels materials del CFGS Desenvolupament d'Aplicacions Web";
+        subtitleText = t("view.defaultSubtitle");
     }
 
-    if (state.query) {
+    // Añade el contexto de búsqueda al subtítulo cuando hay texto.
+    const trimmedQuery = state.query.trim();
+    if (trimmedQuery) {
         subtitleText = subtitleText
-            ? `${subtitleText} · cerca «${state.query.trim()}»`
-            : `Cerca: «${state.query.trim()}»`;
+            ? `${subtitleText} · ${t("header.searchAppend", { query: trimmedQuery })}`
+            : t("header.searchStandalone", { query: trimmedQuery });
     }
 
     title.textContent = titleText;
     subtitle.textContent = subtitleText;
-    counter.textContent = `${files.length.toLocaleString("ca-ES")} fitxers`;
+    counter.textContent = `${countNumber(files.length)} ${pluralWord(files.length, "view.count")}`;
 };
 
 // Dibuja los chips de formato con su contador de ficheros; los
@@ -632,7 +648,7 @@ const renderGrid = (files) => {
                 class: "card",
                 dataset: { index: String(index), ext: file.ext },
                 title: `${file.name} · ${file.module}`,
-                "aria-label": `Veure ${file.name} (${info.label})`,
+                "aria-label": t("card.viewAria", { name: file.name, label: info.label }),
             },
             [
                 createEl("span", { class: "card-visual", style: { "--c": info.color, "--tc": textColor } }, [
@@ -654,11 +670,11 @@ const renderEmpty = (files) => {
         empty.classList.remove("hidden");
         const message = $("#emptyMsg");
         if (FILES.length === 0) {
-            message.textContent = "No s'ha pogut carregar l'inventari (data/files.js).";
+            message.textContent = t("empty.inventory");
         } else if (state.query) {
-            message.textContent = `No s'han trobat resultats per a «${state.query.trim()}». Prova amb un altre text o treu filtres.`;
+            message.textContent = t("empty.search", { query: state.query.trim() });
         } else {
-            message.textContent = "No s'han trobat fitxers amb aquests filtres.";
+            message.textContent = t("empty.filters");
         }
     } else {
         empty.classList.add("hidden");
@@ -682,10 +698,8 @@ const renderView = () => {
 // accesible desde esta instalación.
 const unavailableContent = (file) =>
     createEl("div", { class: "alert" }, [
-        createEl("p", {}, [createEl("strong", { text: "El fitxer no és accessible des d'aquesta instal·lació." })]),
-        createEl("p", {
-            text: "Els materials no es publiquen al repositori: les targetes només obren els fitxers reals quan la carpeta de materials és accessible des de la mateixa màquina o servidor.",
-        }),
+        createEl("p", {}, [createEl("strong", { text: t("unavailable.title") })]),
+        createEl("p", { text: t("unavailable.body") }),
     ]);
 
 // Ficha informativa para formatos de Office que el navegador no
@@ -697,8 +711,8 @@ const officeContent = (info) => {
             createEl("span", { text: info.label }),
         ]),
         createEl("div", { class: "office-text" }, [
-            createEl("p", { text: `Aquest format (${info.label}) no es pot previsualitzar directament al navegador.` }),
-            createEl("p", { class: "office-hint", text: "Baixa'l i obre'l amb l'aplicació corresponent." }),
+            createEl("p", { text: t("office.intro", { label: info.label }) }),
+            createEl("p", { class: "office-hint", text: t("office.hint") }),
         ]),
     ]);
 };
@@ -875,7 +889,7 @@ const viewerFrame = (title, url) => {
 const renderViewer = async (file, materials, token) => {
     const viewer = $("#viewer");
     viewer.textContent = "";
-    viewer.append(createEl("p", { class: "viewer-loading", text: "Carregant…" }));
+    viewer.append(createEl("p", { class: "viewer-loading", text: t("viewer.loading") }));
 
     const info = formatInfo(file.ext);
     const url = fileUrl(materials.base, file);
@@ -922,7 +936,7 @@ const renderViewer = async (file, materials, token) => {
         viewer.append(
             createEl("div", { class: "audio-wrap" }, [
                 audio,
-                createEl("p", { class: "audio-note", text: `Àudio ${info.label} · ${formatBytes(file.size)}` }),
+                createEl("p", { class: "audio-note", text: t("viewer.audioNote", { label: info.label, size: formatBytes(file.size) }) }),
             ])
         );
         return;
@@ -982,7 +996,7 @@ const openModal = async (index) => {
 
     const info = formatInfo(file.ext);
     const mod = getModule(file.course, file.moduleId);
-    const route = `${COURSE_NAMES[file.course]} · ${mod.code ? `${mod.code} · ` : ""}${file.module}`;
+    const route = `${courseName(file.course)} · ${mod.code ? `${mod.code} · ` : ""}${file.module}`;
 
     $("#modalKicker").textContent = `${info.label} · ${formatBytes(file.size)}`;
     $("#modalTitle").textContent = file.name;
@@ -1040,6 +1054,52 @@ const refreshNavButtons = () => {
 };
 
 /* ------------------------------------------------------------
+   Traducciones estáticas y selector de idioma
+   ------------------------------------------------------------ */
+
+// Aplica el idioma activo a los textos estáticos del HTML:
+// atributo lang, meta description, texto de los nodos marcados
+// con data-i18n, aria-label con data-i18n-aria y placeholders.
+const applyStaticTexts = () => {
+    document.documentElement.lang = currentLang();
+    const meta = document.querySelector('meta[name="description"]');
+    if (meta) meta.setAttribute("content", t("meta.desc"));
+
+    for (const el of $$("[data-i18n]")) el.textContent = t(el.dataset.i18n);
+    for (const el of $$("[data-i18n-aria]")) el.setAttribute("aria-label", t(el.dataset.i18nAria));
+    for (const el of $$("[data-i18n-placeholder]")) el.placeholder = t(el.dataset.i18nPlaceholder);
+};
+
+// Marca el botón del idioma activo en el selector.
+const syncLanguageButtons = () => {
+    for (const button of $$(".lang-btn")) {
+        const active = button.dataset.lang === currentLang();
+        button.classList.toggle("active", active);
+        button.setAttribute("aria-pressed", active ? "true" : "false");
+    }
+};
+
+// Cambia el idioma de la interfaz y vuelve a pintar todo lo que
+// depende de los textos (árbol, resumen, cabecera y cuadrícula).
+const changeLanguage = (lang) => {
+    if (!setLanguage(lang)) return;
+
+    // Si el modal estaba abierto se recuerda el fichero actual
+    // para reabrirlo después de repintar con el nuevo idioma.
+    const wasOpen = isModalOpen();
+    const reopenIndex = currentIndex;
+    if (wasOpen) closeModal();
+
+    applyStaticTexts();
+    syncLanguageButtons();
+    renderAll();
+
+    if (wasOpen && reopenIndex >= 0 && reopenIndex < currentList.length) {
+        openModal(reopenIndex);
+    }
+};
+
+/* ------------------------------------------------------------
    Buscador
    ------------------------------------------------------------ */
 
@@ -1057,14 +1117,30 @@ let debounceTimer;
    Arranque de la aplicación
    ------------------------------------------------------------ */
 
-// Inicializa la interfaz: árbol, resumen, vista y todos los
-// manejadores de eventos.
-const init = () => {
+// Pinta el árbol, el resumen y la vista principal. Se usa tanto
+// al arrancar como al cambiar el idioma de la interfaz.
+const renderAll = () => {
     const tree = $("#tree");
-
     buildTree(tree);
     renderSummary();
     renderView();
+};
+
+// Inicializa la interfaz: idioma, textos estáticos, árbol, resumen,
+// vista y todos los manejadores de eventos.
+const init = () => {
+    const tree = $("#tree");
+
+    // Aplica el idioma guardado/detectado y marca su botón.
+    applyStaticTexts();
+    syncLanguageButtons();
+
+    renderAll();
+
+    // Selector de idioma (CA / ES / EN).
+    for (const button of $$(".lang-btn")) {
+        button.addEventListener("click", () => changeLanguage(button.dataset.lang));
+    }
 
     // Navegación por el árbol lateral.
     tree.addEventListener("click", (event) => handleTreeClick(tree, event));

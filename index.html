@@ -12,17 +12,25 @@
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-    <!-- Panel lateral: marca y árbol de navegación por cursos. -->
+    <!-- Panel lateral: marca, selector de idioma y árbol. -->
     <div class="app">
         <aside class="sidebar">
             <header class="brand">
                 <div class="brand-mark" aria-hidden="true">C</div>
                 <div class="brand-text">
                     <h1 class="brand-title">Continguts DAW</h1>
-                    <p class="brand-sub">CFGS Desenvolupament d'Aplicacions Web · 1r i 2n curs</p>
+                    <p class="brand-sub" data-i18n="app.brandSub">CFGS Desenvolupament d'Aplicacions Web · 1r i 2n curs</p>
                 </div>
             </header>
-            <nav class="tree" id="tree" aria-label="Navegació per cursos i mòduls"></nav>
+
+            <!-- Selector de idioma de la interfaz (CA / ES / EN). -->
+            <div class="lang-switch" role="group" data-i18n-aria="lang.group" aria-label="Idioma de la interfície">
+                <button type="button" class="lang-btn" data-lang="ca" aria-pressed="true">CA</button>
+                <button type="button" class="lang-btn" data-lang="es" aria-pressed="false">ES</button>
+                <button type="button" class="lang-btn" data-lang="en" aria-pressed="false">EN</button>
+            </div>
+
+            <nav class="tree" id="tree" data-i18n-aria="tree.aria" aria-label="Navegació per cursos i mòduls"></nav>
         </aside>
 
         <!-- Área principal: buscador, resumen, chips y cuadrícula. -->
@@ -30,33 +38,34 @@
             <div class="main-inner">
                 <header class="main-head">
                     <div class="head-text">
-                        <h2 class="view-title" id="viewTitle">Tots els fitxers</h2>
+                        <h2 class="view-title" id="viewTitle" data-i18n="tree.allFiles">Tots els fitxers</h2>
                         <p class="view-sub" id="viewSub"></p>
                     </div>
-                    <div class="search" role="search">
+                    <div class="search" role="search" data-i18n-aria="search.region" aria-label="Cerca">
                         <svg class="search-ico" viewBox="0 0 20 20" aria-hidden="true">
                             <circle cx="8.5" cy="8.5" r="5.5" fill="none" stroke="currentColor" stroke-width="2.4"/>
                             <line x1="12.8" y1="12.8" x2="17.5" y2="17.5" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>
                         </svg>
-                        <label class="sr-only" for="searchInput">Cerca per nom, mòdul o format</label>
+                        <label class="sr-only" for="searchInput" data-i18n="search.label">Cerca per nom, mòdul o format</label>
                         <input id="searchInput" type="search" placeholder="Cerca per nom, mòdul o format…"
-                               autocomplete="off" spellcheck="false">
+                               autocomplete="off" spellcheck="false" data-i18n-placeholder="search.placeholder">
                         <kbd aria-hidden="true">/</kbd>
-                        <button type="button" class="search-clear hidden" id="searchClear" aria-label="Neteja la cerca">✕</button>
+                        <button type="button" class="search-clear hidden" id="searchClear"
+                                data-i18n-aria="search.clear" aria-label="Neteja la cerca">✕</button>
                     </div>
                 </header>
 
-                <section class="summary" id="summary" aria-label="Resum"></section>
+                <section class="summary" id="summary" data-i18n-aria="summary.aria" aria-label="Resum"></section>
 
                 <div class="meta-row">
                     <p class="view-count" id="viewCount" aria-live="polite"></p>
-                    <div class="chips" id="chips" aria-label="Filtrar per format"></div>
+                    <div class="chips" id="chips" role="group" data-i18n-aria="chips.aria" aria-label="Filtrar per format"></div>
                 </div>
 
                 <section class="grid" id="grid" aria-live="polite"></section>
                 <div class="empty hidden" id="empty">
                     <p id="emptyMsg"></p>
-                    <button type="button" class="btn" id="emptyReset">Mostra-ho tot</button>
+                    <button type="button" class="btn" id="emptyReset" data-i18n="empty.reset">Mostra-ho tot</button>
                 </div>
             </div>
         </main>
@@ -72,16 +81,16 @@
                     <h3 class="modal-title" id="modalTitle"></h3>
                     <p class="modal-sub" id="modalSub"></p>
                 </div>
-                <div class="modal-nav" aria-label="Navegació entre fitxers">
-                    <button type="button" class="nav-btn" id="modalPrev" aria-label="Fitxer anterior">
+                <div class="modal-nav" role="group" data-i18n-aria="modal.navAria" aria-label="Navegació entre fitxers">
+                    <button type="button" class="nav-btn" id="modalPrev" data-i18n-aria="modal.prev" aria-label="Fitxer anterior">
                         <svg viewBox="0 0 12 12" aria-hidden="true"><path d="M8.5 1.5 3 6l5.5 4.5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
                     </button>
                     <span class="nav-pos" id="modalPos"></span>
-                    <button type="button" class="nav-btn" id="modalNext" aria-label="Fitxer següent">
+                    <button type="button" class="nav-btn" id="modalNext" data-i18n-aria="modal.next" aria-label="Fitxer següent">
                         <svg viewBox="0 0 12 12" aria-hidden="true"><path d="M3.5 1.5 9 6l-5.5 4.5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
                     </button>
                 </div>
-                <button type="button" class="modal-close" id="modalClose" aria-label="Tanca">✕</button>
+                <button type="button" class="modal-close" id="modalClose" data-i18n-aria="modal.close" aria-label="Tanca">✕</button>
             </header>
             <div class="modal-body" id="modalBody">
                 <div class="viewer" id="viewer"></div>
@@ -89,8 +98,8 @@
             <footer class="modal-foot">
                 <span class="modal-path" id="modalPath"></span>
                 <div class="modal-actions">
-                    <a class="btn btn-ghost" id="modalOpen" href="#" target="_blank" rel="noopener">Obrir en pestanya nova</a>
-                    <a class="btn" id="modalDownload" href="#">Baixar</a>
+                    <a class="btn btn-ghost" id="modalOpen" href="#" target="_blank" rel="noopener" data-i18n="viewer.open">Obrir en pestanya nova</a>
+                    <a class="btn" id="modalDownload" href="#" data-i18n="viewer.download">Baixar</a>
                 </div>
             </footer>
         </div>
