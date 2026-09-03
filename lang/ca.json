@@ -44,7 +44,7 @@
     "office.intro": "Aquest format ({label}) no es pot previsualitzar directament al navegador.",
     "office.hint": "Baixa'l i obre'l amb l'aplicació corresponent.",
     "unavailable.title": "El fitxer no és accessible des d'aquesta instal·lació.",
-    "unavailable.body": "Els materials no es publiquen al repositori: les targetes només obren els fitxers reals quan la carpeta de materials és accessible des de la mateixa màquina o servidor.",
+    "unavailable.body": "No s'ha pogut accedir al fitxer des d'aquesta instal·lació. Serveix la web amb un servidor HTTP des de la carpeta del projecte perquè les targetes puguin obrir els materials.",
     "lang.group": "Idioma de la interfície",
     "fmt.pdf": "PDF",
     "fmt.doc": "Word (DOC)",
