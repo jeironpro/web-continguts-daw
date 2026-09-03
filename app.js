@@ -12,8 +12,8 @@
    ============================================================ */
 import { FILES } from "./data/files.js";
 
-// Internacionalización: diccionario y helpers por idioma.
-import { current as currentLang, locale, setLanguage, translate as t } from "./i18n.js";
+// Internacionalización: helpers y carga de diccionarios por idioma.
+import { DEFAULT_LANG, current as currentLang, ensureDictionaries, locale, setLanguage, translate as t } from "./i18n.js";
 
 /* ------------------------------------------------------------
    Constantes globales
@@ -1081,7 +1081,8 @@ const syncLanguageButtons = () => {
 
 // Cambia el idioma de la interfaz y vuelve a pintar todo lo que
 // depende de los textos (árbol, resumen, cabecera y cuadrícula).
-const changeLanguage = (lang) => {
+// La carga del diccionario es asíncrona (fetch de lang/*.json).
+const changeLanguage = async (lang) => {
     if (!setLanguage(lang)) return;
 
     // Si el modal estaba abierto se recuerda el fichero actual
@@ -1089,6 +1090,16 @@ const changeLanguage = (lang) => {
     const wasOpen = isModalOpen();
     const reopenIndex = currentIndex;
     if (wasOpen) closeModal();
+
+    try {
+        await ensureDictionaries(currentLang());
+    } catch (error) {
+        // Si falla la descarga (p. ej. sin red local), se intenta
+        // con el catalán; si tampoco se puede, se avisa y se usa
+        // la clave como texto de último recurso.
+        console.error("No se pudo cargar el diccionario de idioma:", error);
+        setLanguage(DEFAULT_LANG);
+    }
 
     applyStaticTexts();
     syncLanguageButtons();
@@ -1128,8 +1139,17 @@ const renderAll = () => {
 
 // Inicializa la interfaz: idioma, textos estáticos, árbol, resumen,
 // vista y todos los manejadores de eventos.
-const init = () => {
+const init = async () => {
     const tree = $("#tree");
+
+    // Asegura que el diccionario del idioma guardado/detectado (y
+    // el de catalán como respaldo) esté cargado antes de pintar.
+    try {
+        await ensureDictionaries(currentLang());
+    } catch (error) {
+        console.error("No se pudo cargar el diccionario de idioma:", error);
+        setLanguage(DEFAULT_LANG);
+    }
 
     // Aplica el idioma guardado/detectado y marca su botón.
     applyStaticTexts();
@@ -1242,5 +1262,9 @@ const init = () => {
 // Arranque automático cuando se ejecuta en un navegador (el
 // guardado permite importar el módulo desde Node para pruebas).
 if (typeof document !== "undefined" && typeof document.createElement === "function") {
-    init();
+    init().catch((error) => {
+        // Cualquier error inesperado al arrancar se muestra en la
+        // consola para poder diagnosticarlo.
+        console.error("Error al iniciar la aplicación:", error);
+    });
 }
