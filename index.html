@@ -58,6 +58,39 @@
     </main>
   </div>
 
+  <div class="modal hidden" id="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+    <div class="modal-backdrop" data-tanca></div>
+    <div class="modal-panel">
+      <header class="modal-head">
+        <div class="modal-titles">
+          <span class="modal-kicker" id="modalKicker"></span>
+          <h3 class="modal-title" id="modalTitle"></h3>
+          <p class="modal-sub" id="modalSub"></p>
+        </div>
+        <div class="modal-nav" aria-label="Navegació entre fitxers">
+          <button type="button" class="nav-btn" id="modalPrev" aria-label="Fitxer anterior">
+            <svg viewBox="0 0 12 12" aria-hidden="true"><path d="M8.5 1.5 3 6l5.5 4.5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+          <span class="nav-pos" id="modalPos"></span>
+          <button type="button" class="nav-btn" id="modalNext" aria-label="Fitxer següent">
+            <svg viewBox="0 0 12 12" aria-hidden="true"><path d="M3.5 1.5 9 6l-5.5 4.5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+        </div>
+        <button type="button" class="modal-close" id="modalClose" aria-label="Tanca">✕</button>
+      </header>
+      <div class="modal-body" id="modalBody">
+        <div class="visor" id="visor"></div>
+      </div>
+      <footer class="modal-foot">
+        <span class="modal-path" id="modalPath"></span>
+        <div class="modal-actions">
+          <a class="btn btn-ghost" id="modalOpen" href="#" target="_blank" rel="noopener">Obrir en pestanya nova</a>
+          <a class="btn btn-download" id="modalDownload" href="#">Baixar</a>
+        </div>
+      </footer>
+    </div>
+  </div>
+
   <script src="data/fitxers.js"></script>
   <script src="app.js"></script>
 </body>

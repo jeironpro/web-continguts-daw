@@ -107,6 +107,43 @@
 
   const clauModul = (curs, modulId) => `${curs}|${modulId}`;
 
+  /* Llista actualment renderitzada (per al visor) */
+  let llistaActual = [];
+  let idxActual = -1;
+
+  /* ------------------------------------------------------------
+     Ruta de materials: la web pot viure fora de la carpeta de
+     materials; es prova cada candidat per saber on són.
+     ------------------------------------------------------------ */
+  const MATERIALS_CANDIDATES = [
+    "../../../Descargas/desenvolupament_aplicacions_web",
+    "../Descargas/desenvolupament_aplicacions_web",
+    "/Descargas/desenvolupament_aplicacions_web",
+    "",
+  ];
+
+  const encamina = (rel) => rel.split("/").map(encodeURIComponent).join("/");
+
+  const materialsInfo = (async () => {
+    if (FITXERS.length === 0) return { base: "", ok: false };
+    const mostra = FITXERS[0].rel;
+    // Amb protocol file:// no es pot sondar: s'usa el candidat per defecte
+    // (repo a ~/Repositorios/publico/web-continguts-daw, materials a ~/Descargas/...).
+    if (!location.protocol.startsWith("http")) {
+      return { base: MATERIALS_CANDIDATES[0], ok: true };
+    }
+    for (const cand of MATERIALS_CANDIDATES) {
+      const url = `${cand.replace(/\/$/, "")}/${encamina(mostra)}`;
+      try {
+        const r = await fetch(url, { method: "HEAD" });
+        if (r.ok) return { base: cand.replace(/\/$/, ""), ok: true };
+      } catch (_) {
+        /* prova el següent candidat */
+      }
+    }
+    return { base: "", ok: false };
+  })();
+
   /* ------------------------------------------------------------
      Índexs sobre l'inventari
      ------------------------------------------------------------ */
@@ -365,7 +402,7 @@
         const info = infoFormat(f.ext);
         const colorText = INK_ON.has(info.color) ? "var(--ink)" : "#ffffff";
         return `
-          <button type="button" class="card" data-i="${i}"
+          <button type="button" class="card" data-i="${i}" data-ext="${escapa(f.ext)}"
             title="${escapa(f.nom)} · ${escapa(f.modul)}"
             aria-label="Veure ${escapa(f.nom)} (${escapa(info.label)})">
             <span class="card-visual" style="--c:${info.color}">
@@ -486,13 +523,272 @@
   };
 
   const renderVista = () => {
-    const llista = filtra();
+    llistaActual = filtra();
     actualitzaCerca();
-    renderMeta(llista);
+    renderMeta(llistaActual);
     renderChips(llistaContext());
-    renderGraella(llista);
-    renderBuit(llista);
+    renderGraella(llistaActual);
+    renderBuit(llistaActual);
   };
+
+  /* ------------------------------------------------------------
+     Visor de fitxers (modal)
+     ------------------------------------------------------------ */
+  const modal = $("#modal");
+  const visor = $("#visor");
+  let darrerFocus = null;
+  let peticio = 0; // per cancel·lar renders en curs
+
+  const renderMarkdown = (text) => {
+    const inline = (s) => {
+      let out = escapa(s);
+      out = out.replace(/`([^`]+)`/g, "<code>$1</code>");
+      out = out.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
+      out = out.replace(/\*([^*]+)\*/g, "<em>$1</em>");
+      out = out.replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, (m, t, u) => {
+        try {
+          return `<a href="${escapa(decodeURI(u))}" target="_blank" rel="noopener">${t}</a>`;
+        } catch (_) {
+          return m;
+        }
+      });
+      return out;
+    };
+
+    const línies = String(text).replace(/\r\n?/g, "\n").split("\n");
+    let html = "";
+    let enBloc = null; // {tipus: 'ul'|'ol'|'pre', obert, lleng} | null
+    const tancaBloc = () => {
+      if (!enBloc) return;
+      html += enBloc.tipus === "pre" ? `</pre>` : `</${enBloc.tipus}>`;
+      enBloc = null;
+    };
+
+    for (const línia of línies) {
+      const t = línia.trimEnd();
+
+      if (enBloc && enBloc.tipus === "pre") {
+        if (t.trim().startsWith("```")) {
+          tancaBloc();
+          continue;
+        }
+        html += `${escapa(t)}\n`;
+        continue;
+      }
+
+      const fenced = t.trim().match(/^```(\w*)\s*$/);
+      if (fenced) {
+        tancaBloc();
+        const lleng = fenced[1] || "";
+        html += `<pre><code${lleng ? ` data-lang="${escapa(lleng)}"` : ""}>`;
+        enBloc = { tipus: "pre" };
+        continue;
+      }
+
+      const h = t.match(/^(#{1,6})\s+(.*)$/);
+      if (h) {
+        tancaBloc();
+        const nivell = h[1].length;
+        html += `<h${nivell}>${inline(h[2])}</h${nivell}>`;
+        continue;
+      }
+
+      const hr = /^\s*([-*_])\1{2,}\s*$/.test(t);
+      if (hr) {
+        tancaBloc();
+        html += `<hr>`;
+        continue;
+      }
+
+      const ul = t.match(/^\s*[-*+]\s+(.*)$/);
+      const ol = t.match(/^\s*\d+\.\s+(.*)$/);
+      if (ul || ol) {
+        const tipus = ul ? "ul" : "ol";
+        if (!enBloc || enBloc.tipus !== tipus) {
+          tancaBloc();
+          html += `<${tipus}>`;
+          enBloc = { tipus };
+        }
+        html += `<li>${inline((ul ? ul[1] : ol[1]))}</li>`;
+        continue;
+      }
+
+      if (t.trim() === "") {
+        tancaBloc();
+        continue;
+      }
+
+      tancaBloc();
+      html += `<p>${inline(t)}</p>`;
+    }
+    tancaBloc();
+    return html;
+  };
+
+  const htmlNoDisponible = (f) => `
+    <div class="alert">
+      <p><strong>El fitxer no és accessible des d'aquesta instal·lació.</strong></p>
+      <p>Els materials no es publiquen al repositori: les targetes només obren els fitxers reals
+      quan la carpeta de materials és accessible des de la mateixa màquina o servidor.</p>
+    </div>`;
+
+  const htmlInfoOffice = (info) => {
+    const textColor = INK_ON.has(info.color) ? "var(--ink)" : "#ffffff";
+    return `
+    <div class="office">
+      <div class="office-icon" style="--c:${info.color};--tc:${textColor}">
+        <span>${escapa(info.label)}</span>
+      </div>
+      <div class="office-text">
+        <p>Aquest format (${escapa(info.label)}) no es pot previsualitzar directament al navegador.</p>
+        <p class="office-hint">Baixa'l i obre'l amb l'aplicació corresponent.</p>
+      </div>
+    </div>`;
+  };
+
+  const renderVisor = (f, m, token) => {
+    visor.innerHTML = `<p class="visor-loading">Carregant…</p>`;
+    const info = infoFormat(f.ext);
+    const url = `${m.base ? m.base + "/" : ""}${encamina(f.rel)}`;
+    const cat = info.cat;
+
+    if (!m.ok) {
+      visor.innerHTML = htmlNoDisponible(f);
+      return;
+    }
+
+    if (cat === "pdf" || cat === "html") {
+      visor.innerHTML = `<iframe class="visor-frame" src="${escapa(url)}" title="${escapa(f.nom)}"></iframe>`;
+    } else if (cat === "image") {
+      visor.innerHTML = `<img class="visor-img" src="${escapa(url)}" alt="${escapa(f.nom)}">`;
+      const img = visor.querySelector("img");
+      img.addEventListener(
+        "error",
+        () => {
+          if (token === peticio) visor.innerHTML = htmlNoDisponible(f);
+        },
+        { once: true }
+      );
+    } else if (cat === "audio") {
+      visor.innerHTML = `<div class="audio-wrap">
+          <audio controls preload="metadata" src="${escapa(url)}"></audio>
+          <p class="audio-note">Àudio ${escapa(info.label)} · ${formatBytes(f.mida)}</p>
+        </div>`;
+    } else if (cat === "office" || cat === "fitxer") {
+      visor.innerHTML = htmlInfoOffice(info);
+    } else {
+      /* text, codi i markdown */
+      const petit = (f.mida || 0) < 1_500_000;
+      if (!petit) {
+        visor.innerHTML = `<iframe class="visor-frame" src="${escapa(url)}" title="${escapa(f.nom)}"></iframe>`;
+        return;
+      }
+      fetch(url)
+        .then((r) => {
+          if (!r.ok) throw new Error("no");
+          return r.text();
+        })
+        .then((text) => {
+          if (token !== peticio) return;
+          visor.innerHTML =
+            f.ext === "md"
+              ? `<article class="md-view">${renderMarkdown(text)}</article>`
+              : `<pre class="code-view"><code>${escapa(text)}</code></pre>`;
+        })
+        .catch(() => {
+          if (token !== peticio) return;
+          visor.innerHTML = `<iframe class="visor-frame" src="${escapa(url)}" title="${escapa(f.nom)}"></iframe>`;
+        });
+    }
+  };
+
+  const modalOberta = () => !modal.classList.contains("hidden");
+
+  const obreModal = (i) => {
+    const f = llistaActual[i];
+    if (!f) return;
+    idxActual = i;
+    peticio += 1;
+    const token = peticio;
+    darrerFocus = document.activeElement;
+
+    const info = infoFormat(f.ext);
+    const m = modulDe(f.curs, f.modulId);
+    const ruta = `${CURSA[f.curs].nom} · ${m.codi ? m.codi + " · " : ""}${f.modul}`;
+
+    $("#modalKicker").textContent = `${info.label} · ${formatBytes(f.mida)}`;
+    $("#modalTitle").textContent = f.nom;
+    $("#modalTitle").title = f.rel;
+    $("#modalSub").textContent = ruta;
+    $("#modalPath").textContent = f.rel;
+    $("#modalPath").title = f.rel;
+
+    const open = $("#modalOpen");
+    const download = $("#modalDownload");
+    const href = (b) => `${b.base ? b.base + "/" : ""}${encamina(f.rel)}`;
+    open.href = "#";
+    download.href = "#";
+    download.setAttribute("download", f.nom);
+
+    modal.classList.remove("hidden");
+    document.body.classList.add("modal-open");
+    visor.innerHTML = `<p class="visor-loading">Carregant…</p>`;
+
+    materialsInfo.then((mInfo) => {
+      if (token !== peticio) return;
+      open.href = href(mInfo);
+      download.href = href(mInfo);
+      renderVisor(f, mInfo, token);
+      actualitzaNav();
+    });
+
+    actualitzaNav();
+    $("#modalClose").focus();
+  };
+
+  const tancaModal = (tornaFocus = true) => {
+    if (!modalOberta()) return;
+    peticio += 1;
+    modal.classList.add("hidden");
+    document.body.classList.remove("modal-open");
+    visor.innerHTML = "";
+    if (tornaFocus && darrerFocus && typeof darrerFocus.focus === "function") darrerFocus.focus();
+  };
+
+  const actualitzaNav = () => {
+    const prev = $("#modalPrev");
+    const next = $("#modalNext");
+    prev.disabled = idxActual <= 0;
+    next.disabled = idxActual >= llistaActual.length - 1;
+    $("#modalPos").textContent =
+      llistaActual.length > 1 ? `${idxActual + 1} / ${llistaActual.length}` : "";
+  };
+
+  $("#grid").addEventListener("click", (e) => {
+    const btn = e.target.closest(".card");
+    if (!btn) return;
+    obreModal(Number(btn.dataset.i));
+  });
+
+  $("#modalClose").addEventListener("click", () => tancaModal());
+  modal.querySelector("[data-tanca]").addEventListener("click", () => tancaModal());
+  $("#modalPrev").addEventListener("click", () => {
+    if (idxActual > 0) obreModal(idxActual - 1);
+  });
+  $("#modalNext").addEventListener("click", () => {
+    if (idxActual < llistaActual.length - 1) obreModal(idxActual + 1);
+  });
+
+  document.addEventListener("keydown", (e) => {
+    if (!modalOberta()) return;
+    if (e.key === "Escape") {
+      tancaModal();
+    } else if (e.key === "ArrowLeft") {
+      if (idxActual > 0) obreModal(idxActual - 1);
+    } else if (e.key === "ArrowRight") {
+      if (idxActual < llistaActual.length - 1) obreModal(idxActual + 1);
+    }
+  });
 
   /* ------------------------------------------------------------
      Arrencada
