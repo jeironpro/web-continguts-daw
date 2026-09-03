@@ -44,7 +44,7 @@
     "office.intro": "Este formato ({label}) no se puede previsualizar directamente en el navegador.",
     "office.hint": "Descárgalo y ábrelo con la aplicación correspondiente.",
     "unavailable.title": "El archivo no es accesible desde esta instalación.",
-    "unavailable.body": "Los materiales no se publican en el repositorio: las tarjetas solo abren los archivos reales cuando la carpeta de materiales es accesible desde la misma máquina o servidor.",
+    "unavailable.body": "No se ha podido acceder al archivo desde esta instalación. Sirve la web con un servidor HTTP desde la carpeta del proyecto para que las tarjetas puedan abrir los materiales.",
     "lang.group": "Idioma de la interfaz",
     "fmt.pdf": "PDF",
     "fmt.doc": "Word (DOC)",
