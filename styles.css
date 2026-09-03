@@ -1139,6 +1139,16 @@ body.modal-open {
     color: var(--tc, var(--ink));
 }
 
+/* El nombre del formato dentro del icono se trunca con puntos
+   suspensivos si no cabe en el ancho del icono. */
+.office-icon span {
+    display: block;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
 .office-text {
     max-width: 420px;
 }
@@ -1170,19 +1180,22 @@ body.modal-open {
     font-size: 14.5px;
 }
 
-/* Pie del modal: ruta del fichero y acciones. */
+/* Pie del modal: ruta del fichero y acciones. En pantallas
+   estrechas el contenido se parte en dos filas (ruta arriba y
+   botones debajo) para que no desborden por la derecha. */
 .modal-foot {
     flex: 0 0 auto;
     display: flex;
     align-items: center;
-    gap: 10px;
+    flex-wrap: wrap;
+    gap: 6px 10px;
     padding: 10px 12px;
     background: var(--cream);
     border-top: var(--border);
 }
 
 .modal-path {
-    flex: 1 1 auto;
+    flex: 1 1 100%;
     min-width: 0;
     font-family: var(--font-mono);
     font-size: 11.5px;
@@ -1193,8 +1206,12 @@ body.modal-open {
 }
 
 .modal-actions {
-    flex: 0 0 auto;
+    flex: 0 1 auto;
+    min-width: 0;
+    width: 100%;
     display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
     gap: 10px;
 }
 
@@ -1213,6 +1230,22 @@ body.modal-open {
 
     .main-inner {
         padding: 24px 22px 72px;
+    }
+
+    /* Pie del modal en una sola fila cuando hay sitio. */
+    .modal-foot {
+        flex-wrap: nowrap;
+        gap: 10px;
+    }
+
+    .modal-path {
+        flex: 1 1 auto;
+    }
+
+    .modal-actions {
+        flex: 0 0 auto;
+        width: auto;
+        margin-left: 0;
     }
 }
 
