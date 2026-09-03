@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="ca">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Continguts DAW — visor de fitxers</title>
+  <meta name="description" content="Visor dels continguts del CFGS Desenvolupament d'Aplicacions Web (1r i 2n curs).">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=DM+Sans:ital,opsz,wght@0,9..40,300..700;1,9..40,400..600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar">
+      <header class="brand">
+        <div class="brand-mark" aria-hidden="true">C</div>
+        <div class="brand-text">
+          <h1 class="brand-title">Continguts DAW</h1>
+          <p class="brand-sub">CFGS Desenvolupament d'Aplicacions Web · 1r i 2n curs</p>
+        </div>
+      </header>
+      <nav class="tree" id="tree" aria-label="Navegació per cursos i mòduls"></nav>
+    </aside>
+
+    <main class="main">
+      <div class="main-inner">
+        <header class="main-head">
+          <h2 class="view-title" id="viewTitle">Tots els fitxers</h2>
+          <p class="view-sub" id="viewSub"></p>
+        </header>
+        <section class="summary" id="summary" aria-label="Resum"></section>
+        <section class="grid" id="grid" aria-live="polite"></section>
+        <div class="empty hidden" id="empty"></div>
+      </div>
+    </main>
+  </div>
+
+  <script src="data/fitxers.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
