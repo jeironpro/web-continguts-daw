@@ -1,1016 +1,1170 @@
 /* ============================================================
-   Continguts DAW — lògica de l'aplicació
+   Continguts DAW — lógica de la aplicación
+   ------------------------------------------------------------
+   Convenciones de este archivo:
+   - Los identificadores (variables, funciones, clases) van en
+     inglés.
+   - Los comentarios van en español.
+   - Los textos visibles para el usuario se mantienen en
+     catalán (contenido de la web).
+   - Sangría fija de 4 espacios.
    ============================================================ */
-import { FITXERS } from "./data/fitxers.js";
+import { FILES } from "./data/files.js";
 
 /* ------------------------------------------------------------
-   Constants
+   Constantes globales
    ------------------------------------------------------------ */
-const CURSA = {
-  1: { nom: "1r curs", carpeta: "moduls_1er_curs_24_25" },
-  2: { nom: "2n curs", carpeta: "moduls_2n_curs_25_26" },
+
+// Nombres mostrados de los cursos; la clave coincide con el
+// campo "course" de cada fichero del inventario.
+const COURSE_NAMES = {
+    1: "1r curs",
+    2: "2n curs",
 };
 
-/* Taula de formats: etiqueta, color (paleta depobudget) i categoria de visor */
+// Tabla de formatos: etiqueta visible, color (paleta depobudget)
+// y tipo de visor que se usará en el modal.
 const FORMATS = {
-  pdf: { label: "PDF", color: "#d95c5c", cat: "pdf" },
-  doc: { label: "Word (DOC)", color: "#4a9fd4", cat: "office" },
-  docx: { label: "Word", color: "#1769e8", cat: "office" },
-  odt: { label: "OpenDocument", color: "#3cbdb1", cat: "office" },
-  pptx: { label: "PowerPoint", color: "#f5b83c", cat: "office" },
-  xlsx: { label: "Excel", color: "#c8e832", cat: "office" },
-  png: { label: "Imatge PNG", color: "#7c3aed", cat: "image" },
-  jpg: { label: "Imatge JPG", color: "#ff5b45", cat: "image" },
-  svg: { label: "Imatge SVG", color: "#4a9fd4", cat: "image" },
-  mp3: { label: "Àudio MP3", color: "#7c3aed", cat: "audio" },
-  md: { label: "Markdown", color: "#3cbdb1", cat: "text" },
-  txt: { label: "Text", color: "#f5b83c", cat: "text" },
-  sql: { label: "SQL", color: "#1769e8", cat: "code" },
-  py: { label: "Python", color: "#4a9fd4", cat: "code" },
-  js: { label: "JavaScript", color: "#f5b83c", cat: "code" },
-  jsx: { label: "JSX (React)", color: "#c8e832", cat: "code" },
-  java: { label: "Java", color: "#ff5b45", cat: "code" },
-  css: { label: "CSS", color: "#7c3aed", cat: "code" },
-  html: { label: "HTML", color: "#ff5b45", cat: "code" },
-  json: { label: "JSON", color: "#f5b83c", cat: "code" },
-  xml: { label: "XML", color: "#3cbdb1", cat: "code" },
-  ipynb: { label: "Notebook", color: "#1769e8", cat: "code" },
+    pdf: { label: "PDF", color: "#d95c5c", viewer: "pdf" },
+    doc: { label: "Word (DOC)", color: "#4a9fd4", viewer: "office" },
+    docx: { label: "Word", color: "#1769e8", viewer: "office" },
+    odt: { label: "OpenDocument", color: "#3cbdb1", viewer: "office" },
+    pptx: { label: "PowerPoint", color: "#f5b83c", viewer: "office" },
+    xlsx: { label: "Excel", color: "#c8e832", viewer: "office" },
+    png: { label: "Imatge PNG", color: "#7c3aed", viewer: "image" },
+    jpg: { label: "Imatge JPG", color: "#ff5b45", viewer: "image" },
+    svg: { label: "Imatge SVG", color: "#4a9fd4", viewer: "image" },
+    mp3: { label: "Àudio MP3", color: "#7c3aed", viewer: "audio" },
+    md: { label: "Markdown", color: "#3cbdb1", viewer: "text" },
+    txt: { label: "Text", color: "#f5b83c", viewer: "text" },
+    sql: { label: "SQL", color: "#1769e8", viewer: "code" },
+    py: { label: "Python", color: "#4a9fd4", viewer: "code" },
+    js: { label: "JavaScript", color: "#f5b83c", viewer: "code" },
+    jsx: { label: "JSX (React)", color: "#c8e832", viewer: "code" },
+    java: { label: "Java", color: "#ff5b45", viewer: "code" },
+    css: { label: "CSS", color: "#7c3aed", viewer: "code" },
+    html: { label: "HTML", color: "#ff5b45", viewer: "code" },
+    json: { label: "JSON", color: "#f5b83c", viewer: "code" },
+    xml: { label: "XML", color: "#3cbdb1", viewer: "code" },
+    ipynb: { label: "Notebook", color: "#1769e8", viewer: "code" },
 };
-const PALETA = ["#1769e8", "#ff5b45", "#7c3aed", "#4a9fd4", "#c8e832", "#f5b83c", "#3cbdb1", "#d95c5c"];
-const INK_ON = new Set(["#c8e832", "#f5b83c"]); // colors clars: text fosc
 
+// Colores de reserva para formatos desconocidos, repartidos de
+// forma determinista a partir del nombre de la extensión.
+const FALLBACK_PALETTE = ["#1769e8", "#ff5b45", "#7c3aed", "#4a9fd4", "#c8e832", "#f5b83c", "#3cbdb1", "#d95c5c"];
+
+// Colores claros sobre los que se debe pintar texto oscuro.
+const DARK_TEXT_COLORS = new Set(["#c8e832", "#f5b83c"]);
+
+// Teclas usadas por los atajos de teclado de la aplicación.
 const KEYS = Object.freeze({
-  BARRA: "/",
-  ESCAPE: "Escape",
-  FLETXA_ESQUERRA: "ArrowLeft",
-  FLETXA_DRETA: "ArrowRight",
+    SLASH: "/",
+    ESCAPE: "Escape",
+    ARROW_LEFT: "ArrowLeft",
+    ARROW_RIGHT: "ArrowRight",
 });
 
+// Espera (ms) antes de aplicar la búsqueda mientras se escribe.
 const DEBOUNCE_MS = 120;
-const TEXT_PREVIEW_MAX = 1_500_000; // límit de mida per mostrar text/codi via fetch
-const NS_SVG = "http://www.w3.org/2000/svg";
 
-/* Candidats per localitzar la carpeta de materials (la web pot viure
-   fora d'ella; els fitxers no es publiquen al repositori). */
-const MATERIALS_CANDIDATES = [
-  "../../../Descargas/desenvolupament_aplicacions_web",
-  "../Descargas/desenvolupament_aplicacions_web",
-  "/Descargas/desenvolupament_aplicacions_web",
-  "",
+// Por encima de este tamaño, el texto/código no se descarga con
+// fetch y se muestra en un iframe para no bloquear el navegador.
+const TEXT_PREVIEW_LIMIT = 1_500_000;
+
+// Espacio de nombres de SVG para crear iconos de forma segura.
+const SVG_NAMESPACE = "http://www.w3.org/2000/svg";
+
+// Carpetas candidatas donde puede vivir la carpeta de materiales:
+// la web puede publicarse fuera de ella y los ficheros reales no
+// se suben al repositorio (solo se versiona el inventario).
+const MATERIAL_DIRS = [
+    "../../../Descargas/desenvolupament_aplicacions_web",
+    "../Descargas/desenvolupament_aplicacions_web",
+    "/Descargas/desenvolupament_aplicacions_web",
+    "",
 ];
 
 /* ------------------------------------------------------------
-   Utilitats
+   Utilidades generales
    ------------------------------------------------------------ */
-const $ = (sel, el = document) => el.querySelector(sel);
-const $$ = (sel, el = document) => [...el.querySelectorAll(sel)];
 
-const infoFormat = (ext) => {
-  const conegut = FORMATS[ext];
-  if (conegut) return conegut;
-  let suma = 0;
-  for (const ch of ext) suma += ch.charCodeAt(0);
-  return { label: ext.toUpperCase(), color: PALETA[suma % PALETA.length], cat: "fitxer" };
+// Atajos de consulta: el segundo argumento permite acotar el
+// ámbito al elemento que se pasa (p. ej. el árbol de navegación).
+const $ = (selector, element = document) => element.querySelector(selector);
+const $$ = (selector, element = document) => [...element.querySelectorAll(selector)];
+
+// Devuelve la ficha de un formato; si la extensión no está
+// catalogada, genera una ficha de reserva con color estable.
+const formatInfo = (ext) => {
+    const known = FORMATS[ext];
+    if (known) return known;
+    let checksum = 0;
+    for (const char of ext) checksum += char.charCodeAt(0);
+    return { label: ext.toUpperCase(), color: FALLBACK_PALETTE[checksum % FALLBACK_PALETTE.length], viewer: "file" };
 };
 
+// Formatea un número de bytes en una unidad legible (B, KB, MB…)
+// usando coma decimal, como se hace en catalán.
 const formatBytes = (bytes) => {
-  if (!Number.isFinite(bytes) || bytes < 0) return "—";
-  const unitats = ["B", "KB", "MB", "GB"];
-  let valor = bytes;
-  let i = 0;
-  while (valor >= 1024 && i < unitats.length - 1) {
-    valor /= 1024;
-    i += 1;
-  }
-  const digits = valor >= 100 || i === 0 ? 0 : 1;
-  return `${valor.toFixed(digits).replace(".", ",")} ${unitats[i]}`;
-};
-
-const normalitza = (s) =>
-  String(s)
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase();
-
-const escRe = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-
-const textColorSobre = (color) => (INK_ON.has(color) ? "var(--ink)" : "#ffffff");
-
-/* ------------------------------------------------------------
-   Constructors de DOM (renderitzat segur, sense innerHTML)
-   ------------------------------------------------------------ */
-const crea = (tag, atrs = {}, fills = []) => {
-  const el = document.createElement(tag);
-  for (const [nom, valor] of Object.entries(atrs)) {
-    if (valor == null || valor === false) continue;
-    if (nom === "class") el.className = valor;
-    else if (nom === "text") el.textContent = String(valor);
-    else if (nom === "style") {
-      for (const [prop, v] of Object.entries(valor)) el.style.setProperty(prop, v);
-    } else if (nom === "dataset") Object.assign(el.dataset, valor);
-    else if (nom === "disabled") el.disabled = true;
-    else if (nom === "href") el.href = String(valor);
-    else if (nom === "download") el.setAttribute("download", String(valor));
-    else el.setAttribute(nom, valor === true ? "" : String(valor));
-  }
-  omple(el, fills);
-  return el;
-};
-
-const omple = (pare, fills) => {
-  const llista = Array.isArray(fills) ? fills : [fills];
-  for (const fill of llista) {
-    if (fill == null || fill === false) continue;
-    pare.append(fill instanceof Node ? fill : document.createTextNode(String(fill)));
-  }
-  return pare;
-};
-
-const creaSvg = (tag, atrs = {}, fills = []) => {
-  const el = document.createElementNS(NS_SVG, tag);
-  for (const [nom, valor] of Object.entries(atrs)) {
-    if (valor == null || valor === false) continue;
-    el.setAttribute(nom, String(valor));
-  }
-  for (const fill of fills) if (fill) el.append(fill);
-  return el;
-};
-
-const iconaGraella = () =>
-  creaSvg("svg", { class: "tree-ico", viewBox: "0 0 16 16", "aria-hidden": "true" }, [
-    creaSvg("rect", { x: 1, y: 1, width: 6, height: 6, fill: "none", stroke: "currentColor", "stroke-width": 2 }),
-    creaSvg("rect", { x: 9, y: 1, width: 6, height: 6, fill: "none", stroke: "currentColor", "stroke-width": 2 }),
-    creaSvg("rect", { x: 1, y: 9, width: 6, height: 6, fill: "none", stroke: "currentColor", "stroke-width": 2 }),
-    creaSvg("rect", { x: 9, y: 9, width: 6, height: 6, fill: "none", stroke: "currentColor", "stroke-width": 2 }),
-  ]);
-
-const iconaCaret = () =>
-  creaSvg("svg", { class: "caret", viewBox: "0 0 12 12", "aria-hidden": "true" }, [
-    creaSvg("path", {
-      d: "M3 1.5 8.5 6 3 10.5",
-      fill: "none",
-      stroke: "currentColor",
-      "stroke-width": 2.4,
-      "stroke-linecap": "round",
-      "stroke-linejoin": "round",
-    }),
-  ]);
-
-/* Afegeix text a un contenidor; si hi ha cerca, marca les coincidències */
-const marcaText = (contenidor, text, cerca) => {
-  if (!cerca) {
-    contenidor.append(text);
-    return;
-  }
-  const re = new RegExp(`(${escRe(cerca)})`, "ig");
-  let ultim = 0;
-  let m;
-  while ((m = re.exec(String(text)))) {
-    if (m.index > ultim) contenidor.append(String(text).slice(ultim, m.index));
-    contenidor.append(crea("mark", {}, [m[0]]));
-    ultim = m.index + m[0].length;
-  }
-  contenidor.append(String(text).slice(ultim));
-};
-
-/* ------------------------------------------------------------
-   Ruta de materials (sondatge de candidats)
-   ------------------------------------------------------------ */
-const encamina = (rel) => rel.split("/").map(encodeURIComponent).join("/");
-
-const materialsInfo = (async () => {
-  if (FITXERS.length === 0) return { base: "", ok: false };
-  const mostra = FITXERS[0].rel;
-  for (const cand of MATERIALS_CANDIDATES) {
-    const url = `${cand.replace(/\/$/, "")}/${encamina(mostra)}`;
-    try {
-      const r = await fetch(url, { method: "HEAD" });
-      if (r.ok) return { base: cand.replace(/\/$/, ""), ok: true };
-    } catch (_) {
-      /* prova el següent candidat */
+    if (!Number.isFinite(bytes) || bytes < 0) return "—";
+    const units = ["B", "KB", "MB", "GB"];
+    let value = bytes;
+    let unitIndex = 0;
+    while (value >= 1024 && unitIndex < units.length - 1) {
+        value /= 1024;
+        unitIndex += 1;
     }
-  }
-  return { base: "", ok: false };
+    const digits = value >= 100 || unitIndex === 0 ? 0 : 1;
+    return `${value.toFixed(digits).replace(".", ",")} ${units[unitIndex]}`;
+};
+
+// Normaliza un texto para comparar: quita tildes y pasa a
+// minúsculas (permite buscar sin preocuparse por los acentos).
+const normalizeText = (text) =>
+    String(text)
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .toLowerCase();
+
+// Escapa los metacaracteres de regex de una cadena literal.
+const escapeRegex = (text) => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+// Decide el color del texto sobre un fondo de color dado:
+// los colores claros usan tinta oscura y el resto, blanco.
+const textColorFor = (color) => (DARK_TEXT_COLORS.has(color) ? "var(--ink)" : "#ffffff");
+
+/* ------------------------------------------------------------
+   Construcción de DOM (renderizado seguro, sin innerHTML)
+   ------------------------------------------------------------ */
+
+// Crea un elemento con atributos y contenido. Los hijos pueden
+// ser nodos o texto plano; null/false se ignoran. La clave "text"
+// fija el textContent y "class" el className (nunca atributos).
+const createEl = (tag, attrs = {}, children = []) => {
+    const el = document.createElement(tag);
+    for (const [name, value] of Object.entries(attrs)) {
+        if (value == null || value === false) continue;
+        if (name === "class") el.className = value;
+        else if (name === "text") el.textContent = String(value);
+        else if (name === "style") {
+            for (const [prop, val] of Object.entries(value)) el.style.setProperty(prop, val);
+        } else if (name === "dataset") Object.assign(el.dataset, value);
+        else if (name === "disabled") el.disabled = true;
+        else if (name === "href") el.href = String(value);
+        else if (name === "download") el.setAttribute("download", String(value));
+        else el.setAttribute(name, value === true ? "" : String(value));
+    }
+    const list = Array.isArray(children) ? children : [children];
+    for (const child of list) {
+        if (child == null || child === false) continue;
+        el.append(child instanceof Node ? child : document.createTextNode(String(child)));
+    }
+    return el;
+};
+
+// Crea un elemento SVG (los atributos se fijan sin tocar el
+// namespace por defecto del documento).
+const createSvgEl = (tag, attrs = {}, children = []) => {
+    const el = document.createElementNS(SVG_NAMESPACE, tag);
+    for (const [name, value] of Object.entries(attrs)) {
+        if (value == null || value === false) continue;
+        el.setAttribute(name, String(value));
+    }
+    for (const child of children) if (child) el.append(child);
+    return el;
+};
+
+// Icono de cuadrícula usado en el botón raíz del árbol.
+const gridIcon = () =>
+    createSvgEl("svg", { class: "tree-ico", viewBox: "0 0 16 16", "aria-hidden": "true" }, [
+        createSvgEl("rect", { x: 1, y: 1, width: 6, height: 6, fill: "none", stroke: "currentColor", "stroke-width": 2 }),
+        createSvgEl("rect", { x: 9, y: 1, width: 6, height: 6, fill: "none", stroke: "currentColor", "stroke-width": 2 }),
+        createSvgEl("rect", { x: 1, y: 9, width: 6, height: 6, fill: "none", stroke: "currentColor", "stroke-width": 2 }),
+        createSvgEl("rect", { x: 9, y: 9, width: 6, height: 6, fill: "none", stroke: "currentColor", "stroke-width": 2 }),
+    ]);
+
+// Flecha de expansión (caret) de las secciones del árbol.
+const caretIcon = () =>
+    createSvgEl("svg", { class: "caret", viewBox: "0 0 12 12", "aria-hidden": "true" }, [
+        createSvgEl("path", {
+            d: "M3 1.5 8.5 6 3 10.5",
+            fill: "none",
+            stroke: "currentColor",
+            "stroke-width": 2.4,
+            "stroke-linecap": "round",
+            "stroke-linejoin": "round",
+        }),
+    ]);
+
+// Añade texto a un contenedor; si hay búsqueda activa, envuelve
+// las coincidencias en <mark> para resaltarlas visualmente.
+const highlightText = (container, text, query) => {
+    if (!query) {
+        container.append(text);
+        return;
+    }
+    const regex = new RegExp(`(${escapeRegex(query)})`, "ig");
+    let lastIndex = 0;
+    let match;
+    while ((match = regex.exec(String(text)))) {
+        if (match.index > lastIndex) container.append(String(text).slice(lastIndex, match.index));
+        container.append(createEl("mark", {}, [match[0]]));
+        lastIndex = match.index + match[0].length;
+    }
+    container.append(String(text).slice(lastIndex));
+};
+
+/* ------------------------------------------------------------
+   Localización de la carpeta de materiales
+   ------------------------------------------------------------ */
+
+// Codifica cada segmento de una ruta relativa para usarla en URL.
+const encodePath = (relative) => relative.split("/").map(encodeURIComponent).join("/");
+
+// Sondea las carpetas candidatas con una petición HEAD sobre el
+// primer fichero del inventario; devuelve la base que responde.
+const materialsProbe = (async () => {
+    if (FILES.length === 0) return { base: "", ok: false };
+    const sample = FILES[0].path;
+    for (const candidate of MATERIAL_DIRS) {
+        const url = `${candidate.replace(/\/$/, "")}/${encodePath(sample)}`;
+        try {
+            const response = await fetch(url, { method: "HEAD" });
+            if (response.ok) return { base: candidate.replace(/\/$/, ""), ok: true };
+        } catch (_) {
+            // Silencioso: se prueba el siguiente candidato.
+        }
+    }
+    return { base: "", ok: false };
 })();
 
 /* ------------------------------------------------------------
-   Estat de navegació i filtratge
+   Estado de navegación y filtrado
    ------------------------------------------------------------ */
-const estat = {
-  curs: null, // 1 | 2 | null
-  modul: null, // modulId | null
-  formats: new Set(), // extensions seleccionades
-  q: "", // text de cerca
+
+// Estado global: curso/módulo seleccionado, formatos activos y
+// texto de búsqueda. course/module admiten null = "todos".
+const state = {
+    course: null,
+    module: null,
+    formats: new Set(),
+    query: "",
 };
 
-const resetNavegacio = () => {
-  estat.curs = null;
-  estat.modul = null;
-  estat.formats.clear();
+// Vuelve a la vista raíz (todos los ficheros de ambos cursos).
+const resetNavigation = () => {
+    state.course = null;
+    state.module = null;
+    state.formats.clear();
 };
 
-const clauModul = (curs, modulId) => `${curs}|${modulId}`;
+// Clave compuesta curso|módulo para indexar los módulos.
+const moduleKey = (course, moduleId) => `${course}|${moduleId}`;
 
-let llistaActual = [];
-let idxActual = -1;
-let peticio = 0; // token per cancel·lar renders del visor en curs
+// Lista de ficheros filtrados que se muestran en la cuadrícula.
+let currentList = [];
 
-/* ------------------------------------------------------------
-   Índexs sobre l'inventari
-   ------------------------------------------------------------ */
-const modulsPerCurs = { 1: [], 2: [] };
-const vistos = new Set();
-for (const f of FITXERS) {
-  const clau = clauModul(f.curs, f.modulId);
-  if (!vistos.has(clau)) {
-    vistos.add(clau);
-    modulsPerCurs[f.curs].push({
-      curs: f.curs,
-      id: f.modulId,
-      codi: f.codi,
-      label: f.modul,
-      n: 0,
-      formats: {},
-    });
-  }
-}
-const perModul = new Map();
-for (const llista of Object.values(modulsPerCurs)) {
-  for (const m of llista) perModul.set(clauModul(m.curs, m.id), m);
-}
-for (const f of FITXERS) {
-  const m = perModul.get(clauModul(f.curs, f.modulId));
-  m.n += 1;
-  m.formats[f.ext] = (m.formats[f.ext] || 0) + 1;
-}
-for (const llista of Object.values(modulsPerCurs)) {
-  for (const m of llista) {
-    m.exts = Object.keys(m.formats).sort((a, b) => m.formats[b] - m.formats[a] || a.localeCompare(b));
-  }
-}
+// Índice dentro de currentList del fichero abierto en el modal.
+let currentIndex = -1;
 
-const modulDe = (curs, id) => perModul.get(clauModul(curs, id));
+// Token de petición: invalida renders del visor desactualizados
+// cuando el usuario navega rápido entre ficheros.
+let requestToken = 0;
 
 /* ------------------------------------------------------------
-   Filtratge (navegació + formats + cerca)
+   Índices sobre el inventario (módulos por curso)
    ------------------------------------------------------------ */
-const llistaContext = () =>
-  FITXERS.filter(
-    (f) =>
-      (estat.curs === null || f.curs === estat.curs) && (estat.modul === null || f.modulId === estat.modul)
-  );
 
-const filtra = () => {
-  const q = normalitza(estat.q.trim());
-  return llistaContext().filter((f) => {
-    if (estat.formats.size > 0 && !estat.formats.has(f.ext)) return false;
-    if (q) {
-      const pal = [f.nom, f.modul, infoFormat(f.ext).label, f.ext, f.codi].map(normalitza).join(" ");
-      if (!pal.includes(q)) return false;
+// Módulos agrupados por curso con sus contadores y formatos.
+const modulesByCourse = { 1: [], 2: [] };
+
+// Índice clave curso|módulo -> objeto módulo.
+const moduleLookup = new Map();
+
+const seenModuleKeys = new Set();
+for (const file of FILES) {
+    const key = moduleKey(file.course, file.moduleId);
+    if (!seenModuleKeys.has(key)) {
+        seenModuleKeys.add(key);
+        modulesByCourse[file.course].push({
+            course: file.course,
+            id: file.moduleId,
+            code: file.code,
+            label: file.module,
+            count: 0,
+            formatCounts: {},
+        });
     }
-    return true;
-  });
-};
+}
+for (const list of Object.values(modulesByCourse)) {
+    for (const mod of list) moduleLookup.set(moduleKey(mod.course, mod.id), mod);
+}
+for (const file of FILES) {
+    const mod = moduleLookup.get(moduleKey(file.course, file.moduleId));
+    mod.count += 1;
+    mod.formatCounts[file.ext] = (mod.formatCounts[file.ext] || 0) + 1;
+}
+// Extensiones de cada módulo ordenadas de más a menos frecuente.
+for (const list of Object.values(modulesByCourse)) {
+    for (const mod of list) {
+        mod.extensions = Object.keys(mod.formatCounts).sort(
+            (a, b) => mod.formatCounts[b] - mod.formatCounts[a] || a.localeCompare(b)
+        );
+    }
+}
+
+// Devuelve el módulo catalogado para un curso y un id de módulo.
+const getModule = (course, moduleId) => moduleLookup.get(moduleKey(course, moduleId));
 
 /* ------------------------------------------------------------
-   Render del resum d'estadístiques (una sola vegada)
+   Filtrado (navegación + formatos + búsqueda)
    ------------------------------------------------------------ */
-const renderResum = () => {
-  const seccio = $("#summary");
-  seccio.textContent = "";
 
-  const numCursos = new Set(FITXERS.map((f) => f.curs)).size;
-  const numModuls = new Set(FITXERS.map((f) => clauModul(f.curs, f.modulId))).size;
-  const numFormats = new Set(FITXERS.map((f) => f.ext)).size;
-  const midaTotal = FITXERS.reduce((acc, f) => acc + (f.mida || 0), 0);
-
-  const dades = [
-    { num: FITXERS.length.toLocaleString("ca-ES"), label: "fitxers" },
-    { num: numFormats.toLocaleString("ca-ES"), label: "formats" },
-    { num: numModuls.toLocaleString("ca-ES"), label: "mòduls" },
-    { num: numCursos.toLocaleString("ca-ES"), label: "cursos" },
-    { num: formatBytes(midaTotal), label: "de material" },
-  ];
-
-  for (const d of dades) {
-    const article = crea("article", { class: "stat" }, [
-      crea("span", { class: "stat-num", text: d.num }),
-      crea("span", { class: "stat-label", text: d.label }),
-    ]);
-    seccio.append(article);
-  }
-};
-
-/* ------------------------------------------------------------
-   Arbre de navegació (sidebar)
-   ------------------------------------------------------------ */
-const construirArbre = (arbre) => {
-  arbre.textContent = "";
-
-  const botoArrel = crea(
-    "button",
-    { type: "button", class: "tree-btn root-btn", dataset: { act: "root" }, "aria-current": "true" },
-    [
-      iconaGraella(),
-      crea("span", { class: "tree-lbl", text: "Tots els fitxers" }),
-      crea("span", { class: "tree-count", text: String(FITXERS.length) }),
-    ]
-  );
-  arbre.append(botoArrel, crea("div", { class: "tree-sep", role: "presentation" }));
-
-  for (const curs of [1, 2]) {
-    const moduls = modulsPerCurs[curs];
-    const total = moduls.reduce((acc, m) => acc + m.n, 0);
-
-    const seccio = crea("section", { class: "curs", dataset: { curs: String(curs) } });
-    const cap = crea(
-      "button",
-      {
-        type: "button",
-        class: "tree-btn curs-btn",
-        dataset: { act: "curs", curs: String(curs) },
-        "aria-expanded": "false",
-      },
-      [iconaCaret(), crea("span", { class: "tree-lbl", text: CURSA[curs].nom }), crea("span", { class: "tree-count", text: String(total) })]
+// Ficheros del ámbito de navegación (curso/módulo sin aplicar
+// todavía el filtro de formatos ni la búsqueda).
+const contextFiles = () =>
+    FILES.filter(
+        (file) =>
+            (state.course === null || file.course === state.course) &&
+            (state.module === null || file.moduleId === state.module)
     );
-    const cos = crea("div", { class: "curs-body" });
 
-    for (const m of moduls) {
-      const fillsModul = [];
-      if (m.codi) fillsModul.push(crea("span", { class: "tree-codi", text: m.codi }));
-      fillsModul.push(
-        crea("span", { class: "tree-lbl", text: m.label }),
-        crea("span", { class: "tree-count", text: String(m.n) })
-      );
-      cos.append(
-        crea(
-          "button",
-          {
-            type: "button",
-            class: "tree-btn modul-btn",
-            dataset: { act: "modul", curs: String(curs), modul: m.id },
-          },
-          fillsModul
-        )
-      );
+// Aplica todos los filtros y devuelve la lista final.
+const applyFilters = () => {
+    const query = normalizeText(state.query.trim());
+    return contextFiles().filter((file) => {
+        if (state.formats.size > 0 && !state.formats.has(file.ext)) return false;
+        if (query) {
+            const haystack = [file.name, file.module, formatInfo(file.ext).label, file.ext, file.code]
+                .map(normalizeText)
+                .join(" ");
+            if (!haystack.includes(query)) return false;
+        }
+        return true;
+    });
+};
 
-      const llistaFormats = crea("div", { class: "fmt-list" });
-      for (const ext of m.exts) {
-        const info = infoFormat(ext);
-        llistaFormats.append(
-          crea(
+/* ------------------------------------------------------------
+   Resumen de estadísticas (se pinta una sola vez)
+   ------------------------------------------------------------ */
+
+// Dibuja las tarjetas de resumen: número de ficheros, formatos,
+// módulos, cursos y tamaño total del material.
+const renderSummary = () => {
+    const section = $("#summary");
+    section.textContent = "";
+
+    const courseCount = new Set(FILES.map((file) => file.course)).size;
+    const moduleCount = new Set(FILES.map((file) => moduleKey(file.course, file.moduleId))).size;
+    const formatCount = new Set(FILES.map((file) => file.ext)).size;
+    const totalSize = FILES.reduce((acc, file) => acc + (file.size || 0), 0);
+
+    const stats = [
+        { number: FILES.length.toLocaleString("ca-ES"), label: "fitxers" },
+        { number: formatCount.toLocaleString("ca-ES"), label: "formats" },
+        { number: moduleCount.toLocaleString("ca-ES"), label: "mòduls" },
+        { number: courseCount.toLocaleString("ca-ES"), label: "cursos" },
+        { number: formatBytes(totalSize), label: "de material" },
+    ];
+
+    for (const stat of stats) {
+        section.append(
+            createEl("article", { class: "stat" }, [
+                createEl("span", { class: "stat-num", text: stat.number }),
+                createEl("span", { class: "stat-label", text: stat.label }),
+            ])
+        );
+    }
+};
+
+/* ------------------------------------------------------------
+   Árbol de navegación (panel lateral)
+   ------------------------------------------------------------ */
+
+// Construye el árbol: raíz "Todos los ficheros", luego cada curso
+// con sus módulos y, dentro de cada módulo, sus formatos.
+const buildTree = (tree) => {
+    tree.textContent = "";
+
+    const rootButton = createEl(
+        "button",
+        { type: "button", class: "tree-btn", dataset: { action: "root" }, "aria-current": "true" },
+        [gridIcon(), createEl("span", { class: "tree-lbl", text: "Tots els fitxers" }), createEl("span", { class: "tree-count", text: String(FILES.length) })]
+    );
+    tree.append(rootButton, createEl("div", { class: "tree-sep", role: "presentation" }));
+
+    for (const course of [1, 2]) {
+        const modules = modulesByCourse[course];
+        const total = modules.reduce((acc, mod) => acc + mod.count, 0);
+
+        const section = createEl("section", { class: "course", dataset: { course: String(course) } });
+        const header = createEl(
             "button",
             {
-              type: "button",
-              class: "tree-btn fmt-btn",
-              dataset: { act: "format", curs: String(curs), modul: m.id, ext },
+                type: "button",
+                class: "tree-btn course-btn",
+                dataset: { action: "course", course: String(course) },
+                "aria-expanded": "false",
             },
             [
-              crea("span", { class: "dot", style: { "--c": info.color }, "aria-hidden": "true" }),
-              crea("span", { class: "tree-lbl", text: info.label }),
-              crea("span", { class: "tree-count", text: String(m.formats[ext]) }),
+                caretIcon(),
+                createEl("span", { class: "tree-lbl", text: COURSE_NAMES[course] }),
+                createEl("span", { class: "tree-count", text: String(total) }),
             ]
-          )
         );
-      }
-      cos.append(llistaFormats);
-    }
+        const body = createEl("div", { class: "course-body" });
 
-    seccio.append(cap, cos);
-    arbre.append(seccio);
-  }
-};
+        for (const mod of modules) {
+            const moduleChildren = [];
+            if (mod.code) moduleChildren.push(createEl("span", { class: "tree-codi", text: mod.code }));
+            moduleChildren.push(
+                createEl("span", { class: "tree-lbl", text: mod.label }),
+                createEl("span", { class: "tree-count", text: String(mod.count) })
+            );
+            body.append(
+                createEl("button", {
+                    type: "button",
+                    class: "tree-btn module-btn",
+                    dataset: { action: "module", course: String(course), module: mod.id },
+                }, moduleChildren)
+            );
 
-const obraCurs = (arbre, curs, obert) => {
-  const seccio = arbre.querySelector(`.curs[data-curs="${curs}"]`);
-  if (!seccio) return;
-  seccio.classList.toggle("open", obert);
-  const btn = seccio.querySelector(".curs-btn");
-  btn.setAttribute("aria-expanded", obert ? "true" : "false");
-};
-
-const actualitzaArbre = (arbre) => {
-  for (const b of $$("[data-act]", arbre)) {
-    const actiu =
-      (b.dataset.act === "root" && estat.curs === null) ||
-      (b.dataset.act === "curs" && estat.curs === Number(b.dataset.curs)) ||
-      (b.dataset.act === "modul" &&
-        estat.curs === Number(b.dataset.curs) &&
-        estat.modul === b.dataset.modul) ||
-      (b.dataset.act === "format" &&
-        estat.curs === Number(b.dataset.curs) &&
-        estat.modul === b.dataset.modul &&
-        estat.formats.has(b.dataset.ext));
-    b.classList.toggle("active", actiu);
-    if (b.dataset.act === "root") b.setAttribute("aria-current", actiu ? "true" : "false");
-  }
-  for (const curs of [1, 2]) obraCurs(arbre, curs, estat.curs === curs);
-};
-
-const clicArbre = (arbre, e) => {
-  const btn = e.target.closest("[data-act]");
-  if (!btn || !arbre.contains(btn)) return;
-  const act = btn.dataset.act;
-  const curs = Number(btn.dataset.curs);
-
-  if (act === "root") {
-    resetNavegacio();
-  } else if (act === "curs") {
-    const seccio = btn.closest(".curs");
-    if (estat.curs === curs && estat.modul === null && seccio.classList.contains("open")) {
-      obraCurs(arbre, curs, false); // replega sense canviar la selecció
-      actualitzaArbre(arbre);
-      return;
-    }
-    estat.curs = curs;
-    estat.modul = null;
-    estat.formats.clear();
-    obraCurs(arbre, curs, true);
-  } else if (act === "modul") {
-    estat.curs = curs;
-    estat.modul = btn.dataset.modul;
-    estat.formats.clear();
-    obraCurs(arbre, curs, true);
-    btn.scrollIntoView({ block: "nearest" });
-  } else if (act === "format") {
-    estat.curs = curs;
-    estat.modul = btn.dataset.modul;
-    estat.formats = new Set([btn.dataset.ext]);
-    obraCurs(arbre, curs, true);
-    btn.scrollIntoView({ block: "nearest" });
-  }
-  actualitzaArbre(arbre);
-  renderVista();
-};
-
-/* ------------------------------------------------------------
-   Capçalera de vista, chips i graella
-   ------------------------------------------------------------ */
-const renderMeta = (llista) => {
-  const títol = $("#viewTitle");
-  const sub = $("#viewSub");
-  const count = $("#viewCount");
-
-  const seleccionats = [...estat.formats];
-  const nSel = seleccionats.length;
-  const titolFormats = () => seleccionats.map((ext) => infoFormat(ext).label).sort().join(" + ");
-  const plural = (n, s1, sn) => (n === 1 ? s1 : sn);
-
-  let titolText = "Tots els fitxers";
-  let subText = "";
-
-  if (estat.modul && nSel > 0) {
-    titolText = titolFormats();
-    subText = `${CURSA[estat.curs].nom} · ${modulDe(estat.curs, estat.modul).label}`;
-  } else if (estat.modul) {
-    const m = modulDe(estat.curs, estat.modul);
-    titolText = m.label;
-    subText = `${CURSA[estat.curs].nom} · ${m.exts.length} ${plural(m.exts.length, "format", "formats")}`;
-  } else if (estat.curs) {
-    titolText = CURSA[estat.curs].nom;
-    subText = `${modulsPerCurs[estat.curs].length} ${plural(modulsPerCurs[estat.curs].length, "mòdul", "mòduls")}`;
-    if (nSel > 0) subText += ` · ${nSel} ${plural(nSel, "format seleccionat", "formats seleccionats")}`;
-  } else if (nSel > 0) {
-    titolText = titolFormats();
-    subText = `${nSel} ${plural(nSel, "format seleccionat", "formats seleccionats")} a tots els cursos`;
-  } else {
-    subText = "Visor dels materials del CFGS Desenvolupament d'Aplicacions Web";
-  }
-
-  if (estat.q) subText = subText ? `${subText} · cerca «${estat.q.trim()}»` : `Cerca: «${estat.q.trim()}»`;
-
-  títol.textContent = titolText;
-  sub.textContent = subText;
-  count.textContent = `${llista.length.toLocaleString("ca-ES")} fitxers`;
-};
-
-const renderChips = (llista) => {
-  const chips = $("#chips");
-  chips.textContent = "";
-
-  const comptes = {};
-  for (const f of llista) comptes[f.ext] = (comptes[f.ext] || 0) + 1;
-  const exts = Object.keys(comptes).sort(
-    (a, b) => comptes[b] - comptes[a] || infoFormat(a).label.localeCompare(infoFormat(b).label)
-  );
-
-  for (const ext of exts) {
-    const info = infoFormat(ext);
-    const actiu = estat.formats.has(ext);
-    chips.append(
-      crea(
-        "button",
-        {
-          type: "button",
-          class: `chip${actiu ? " active" : ""}`,
-          dataset: { ext },
-          style: { "--c": info.color },
-          "aria-pressed": actiu ? "true" : "false",
-        },
-        [
-          crea("span", { class: "chip-dot", "aria-hidden": "true" }),
-          crea("span", { class: "chip-lbl", text: info.label }),
-          crea("span", { class: "chip-count", text: String(comptes[ext]) }),
-        ]
-      )
-    );
-  }
-};
-
-const renderGraella = (llista) => {
-  const grid = $("#grid");
-  grid.textContent = "";
-  const q = estat.q.trim();
-
-  llista.forEach((f, i) => {
-    const info = infoFormat(f.ext);
-    const colorText = textColorSobre(info.color);
-
-    const modul = crea("span", { class: "card-modul" });
-    marcaText(modul, f.modul, q);
-    const nom = crea("span", { class: "card-nom" });
-    marcaText(nom, f.nom, q);
-
-    const carta = crea(
-      "button",
-      {
-        type: "button",
-        class: "card",
-        dataset: { i: String(i), ext: f.ext },
-        title: `${f.nom} · ${f.modul}`,
-        "aria-label": `Veure ${f.nom} (${info.label})`,
-      },
-      [
-        crea("span", { class: "card-visual", style: { "--c": info.color, "--tc": colorText } }, [
-          crea("span", { class: "card-ext", text: info.label }),
-          crea("span", { class: "card-size", text: formatBytes(f.mida) }),
-        ]),
-        crea("span", { class: "card-foot" }, [modul, nom]),
-      ]
-    );
-    grid.append(carta);
-  });
-};
-
-const renderBuit = (llista) => {
-  const buit = $("#empty");
-  if (llista.length === 0) {
-    buit.classList.remove("hidden");
-    const msg = $("#emptyMsg");
-    if (FITXERS.length === 0) {
-      msg.textContent = "No s'ha pogut carregar l'inventari (data/fitxers.js).";
-    } else if (estat.q) {
-      msg.textContent = `No s'han trobat resultats per a «${estat.q.trim()}». Prova amb un altre text o treu filtres.`;
-    } else {
-      msg.textContent = "No s'han trobat fitxers amb aquests filtres.";
-    }
-  } else {
-    buit.classList.add("hidden");
-  }
-};
-
-const renderVista = () => {
-  llistaActual = filtra();
-  renderMeta(llistaActual);
-  renderChips(llistaContext());
-  renderGraella(llistaActual);
-  renderBuit(llistaActual);
-};
-
-/* ------------------------------------------------------------
-   Visor de fitxers (modal)
-   ------------------------------------------------------------ */
-const contingutNoDisponible = (f) =>
-  crea("div", { class: "alert" }, [
-    crea("p", {}, [crea("strong", { text: "El fitxer no és accessible des d'aquesta instal·lació." })]),
-    crea("p", {
-      text: "Els materials no es publiquen al repositori: les targetes només obren els fitxers reals quan la carpeta de materials és accessible des de la mateixa màquina o servidor.",
-    }),
-  ]);
-
-const contingutOffice = (info) => {
-  const textColor = textColorSobre(info.color);
-  return crea("div", { class: "office" }, [
-    crea("div", { class: "office-icon", style: { "--c": info.color, "--tc": textColor } }, [
-      crea("span", { text: info.label }),
-    ]),
-    crea("div", { class: "office-text" }, [
-      crea("p", { text: `Aquest format (${info.label}) no es pot previsualitzar directament al navegador.` }),
-      crea("p", { class: "office-hint", text: "Baixa'l i obre'l amb l'aplicació corresponent." }),
-    ]),
-  ]);
-};
-
-const hrefSegur = (url) => {
-  const t = String(url).trim();
-  if (/^(javascript|data|vbscript):/i.test(t)) return null;
-  return t;
-};
-
-/* Render de Markdown cap a nodes DOM */
-const fragmentsInline = (text) => {
-  const resultats = [];
-  const re = /(\*\*[^*]+\*\*|`[^`]+`|\*[^*]+\*|\[[^\]]+\]\([^)\s]+\))/g;
-  let ultim = 0;
-  let m;
-  while ((m = re.exec(text))) {
-    if (m.index > ultim) resultats.push(text.slice(ultim, m.index));
-    resultats.push(m[0]);
-    ultim = m.index + m[0].length;
-  }
-  if (ultim < text.length) resultats.push(text.slice(ultim));
-  return resultats;
-};
-
-const inlineMarkdown = (text) => {
-  const frag = document.createDocumentFragment();
-  for (const t of fragmentsInline(String(text))) {
-    if (t.startsWith("**") && t.endsWith("**") && t.length > 4) {
-      frag.append(crea("strong", {}, [t.slice(2, -2)]));
-    } else if (t.startsWith("`") && t.endsWith("`") && t.length > 2) {
-      frag.append(crea("code", {}, [t.slice(1, -1)]));
-    } else if (t.startsWith("*") && t.endsWith("*") && t.length > 2) {
-      frag.append(crea("em", {}, [t.slice(1, -1)]));
-    } else if (t.startsWith("[")) {
-      const idx = t.indexOf("](");
-      const href = idx > 0 && t.endsWith(")") ? hrefSegur(t.slice(idx + 2, -1)) : null;
-      if (idx > 0 && href != null) {
-        frag.append(crea("a", { href, target: "_blank", rel: "noopener" }, [t.slice(1, idx)]));
-      } else {
-        frag.append(t);
-      }
-    } else {
-      frag.append(t);
-    }
-  }
-  return frag;
-};
-
-const renderMarkdown = (text) => {
-  const article = crea("article", { class: "md-view" });
-  const línies = String(text).replace(/\r\n?/g, "\n").split("\n");
-
-  let llistaOberta = null; // { tag: 'ul'|'ol', el }
-  let citaOberta = null; // element blockquote
-  let codiObert = null; // element code (dins de pre)
-
-  const tancaLlista = () => {
-    if (llistaOberta) {
-      llistaOberta = null;
-    }
-  };
-
-  for (const raw of línies) {
-    const l = raw.trimEnd();
-
-    if (codiObert) {
-      if (/^```/.test(l.trim())) {
-        codiObert = null;
-        continue;
-      }
-      codiObert.append(`${l}\n`);
-      continue;
-    }
-
-    const oberturaCodi = l.trim().match(/^```/);
-    if (oberturaCodi) {
-      tancaLlista();
-      citaOberta = null;
-      const pre = crea("pre", {}, []);
-      codiObert = crea("code", {});
-      pre.append(codiObert);
-      article.append(pre);
-      continue;
-    }
-
-    const titol = l.match(/^(#{1,6})\s+(.*)$/);
-    if (titol) {
-      tancaLlista();
-      citaOberta = null;
-      article.append(crea(`h${titol[1].length}`, {}, [inlineMarkdown(titol[2])]));
-      continue;
-    }
-
-    if (/^\s*([-*_])\1{2,}\s*$/.test(l)) {
-      tancaLlista();
-      citaOberta = null;
-      article.append(crea("hr"));
-      continue;
-    }
-
-    const ul = l.match(/^\s*[-*+]\s+(.*)$/);
-    const ol = l.match(/^\s*\d+\.\s+(.*)$/);
-    if (ul || ol) {
-      citaOberta = null;
-      const tag = ul ? "ul" : "ol";
-      if (!llistaOberta || llistaOberta.tag !== tag) {
-        tancaLlista();
-        llistaOberta = { tag, el: crea(tag) };
-        article.append(llistaOberta.el);
-      }
-      llistaOberta.el.append(crea("li", {}, [inlineMarkdown(ul ? ul[1] : ol[1])]));
-      continue;
-    }
-
-    const cita = l.match(/^\s*>\s?(.*)$/);
-    if (cita) {
-      tancaLlista();
-      if (!citaOberta) {
-        citaOberta = crea("blockquote");
-        article.append(citaOberta);
-      }
-      citaOberta.append(crea("p", {}, [inlineMarkdown(cita[1])]));
-      continue;
-    }
-
-    if (l.trim() === "") {
-      tancaLlista();
-      citaOberta = null;
-      continue;
-    }
-
-    tancaLlista();
-    citaOberta = null;
-    article.append(crea("p", {}, [inlineMarkdown(l)]));
-  }
-  return article;
-};
-
-/* Obre el visor amb el contingut corresponent al tipus de fitxer */
-const renderVisor = async (f, m, token) => {
-  const visor = $("#visor");
-  visor.textContent = "";
-  visor.append(crea("p", { class: "visor-loading", text: "Carregant…" }));
-
-  const info = infoFormat(f.ext);
-  const url = `${m.base ? `${m.base}/` : ""}${encamina(f.rel)}`;
-  const cat = info.cat;
-
-  if (!m.ok) {
-    visor.textContent = "";
-    visor.append(contingutNoDisponible(f));
-    return;
-  }
-
-  if (cat === "pdf" || cat === "html") {
-    visor.textContent = "";
-    const marc = crea("iframe", { class: "visor-frame", title: f.nom });
-    marc.src = url;
-    visor.append(marc);
-    return;
-  }
-
-  if (cat === "image") {
-    visor.textContent = "";
-    const img = crea("img", { class: "visor-img", alt: f.nom });
-    img.src = url;
-    img.addEventListener(
-      "error",
-      () => {
-        if (token === peticio) {
-          visor.textContent = "";
-          visor.append(contingutNoDisponible(f));
+            const formatList = createEl("div", { class: "format-list" });
+            for (const ext of mod.extensions) {
+                const info = formatInfo(ext);
+                formatList.append(
+                    createEl(
+                        "button",
+                        {
+                            type: "button",
+                            class: "tree-btn format-btn",
+                            dataset: { action: "format", course: String(course), module: mod.id, ext },
+                        },
+                        [
+                            createEl("span", { class: "dot", style: { "--c": info.color }, "aria-hidden": "true" }),
+                            createEl("span", { class: "tree-lbl", text: info.label }),
+                            createEl("span", { class: "tree-count", text: String(mod.formatCounts[ext]) }),
+                        ]
+                    )
+                );
+            }
+            body.append(formatList);
         }
-      },
-      { once: true }
-    );
-    visor.append(img);
-    return;
-  }
 
-  if (cat === "audio") {
-    visor.textContent = "";
-    const audio = crea("audio", { controls: "", preload: "metadata", class: "" });
-    audio.src = url;
-    visor.append(
-      crea("div", { class: "audio-wrap" }, [
-        audio,
-        crea("p", { class: "audio-note", text: `Àudio ${info.label} · ${formatBytes(f.mida)}` }),
-      ])
-    );
-    return;
-  }
+        section.append(header, body);
+        tree.append(section);
+    }
+};
 
-  if (cat === "office" || cat === "fitxer") {
-    visor.textContent = "";
-    visor.append(contingutOffice(info));
-    return;
-  }
+// Expande o repliega la sección de un curso en el árbol.
+const setCourseOpen = (tree, course, open) => {
+    const section = tree.querySelector(`.course[data-course="${course}"]`);
+    if (!section) return;
+    section.classList.toggle("open", open);
+    const button = section.querySelector(".course-btn");
+    button.setAttribute("aria-expanded", open ? "true" : "false");
+};
 
-  /* text, codi i markdown */
-  if ((f.mida || 0) >= TEXT_PREVIEW_MAX) {
-    visor.textContent = "";
-    const marc = crea("iframe", { class: "visor-frame", title: f.nom });
-    marc.src = url;
-    visor.append(marc);
-    return;
-  }
+// Marca como activo el botón del árbol que coincide con el
+// estado de navegación y abre el curso correspondiente.
+const refreshTree = (tree) => {
+    for (const button of $$("[data-action]", tree)) {
+        const action = button.dataset.action;
+        const active =
+            (action === "root" && state.course === null) ||
+            (action === "course" && state.course === Number(button.dataset.course)) ||
+            (action === "module" &&
+                state.course === Number(button.dataset.course) &&
+                state.module === button.dataset.module) ||
+            (action === "format" &&
+                state.course === Number(button.dataset.course) &&
+                state.module === button.dataset.module &&
+                state.formats.has(button.dataset.ext));
+        button.classList.toggle("active", active);
+        if (action === "root") button.setAttribute("aria-current", active ? "true" : "false");
+    }
+    for (const course of [1, 2]) setCourseOpen(tree, course, state.course === course);
+};
 
-  try {
-    const r = await fetch(url);
-    if (!r.ok) throw new Error(`HTTP ${r.status}`);
-    const text = await r.text();
-    if (token !== peticio) return;
-    visor.textContent = "";
-    if (f.ext === "md") {
-      visor.append(renderMarkdown(text));
+// Gestiona los clics sobre cualquier botón del árbol.
+const handleTreeClick = (tree, event) => {
+    const button = event.target.closest("[data-action]");
+    if (!button || !tree.contains(button)) return;
+    const action = button.dataset.action;
+    const course = Number(button.dataset.course);
+
+    if (action === "root") {
+        resetNavigation();
+    } else if (action === "course") {
+        const section = button.closest(".course");
+        // Si el curso ya está seleccionado y abierto, un segundo
+        // clic lo repliega sin cambiar la selección.
+        if (state.course === course && state.module === null && section.classList.contains("open")) {
+            setCourseOpen(tree, course, false);
+            refreshTree(tree);
+            return;
+        }
+        state.course = course;
+        state.module = null;
+        state.formats.clear();
+        setCourseOpen(tree, course, true);
+    } else if (action === "module") {
+        state.course = course;
+        state.module = button.dataset.module;
+        state.formats.clear();
+        setCourseOpen(tree, course, true);
+        button.scrollIntoView({ block: "nearest" });
+    } else if (action === "format") {
+        state.course = course;
+        state.module = button.dataset.module;
+        state.formats = new Set([button.dataset.ext]);
+        setCourseOpen(tree, course, true);
+        button.scrollIntoView({ block: "nearest" });
+    }
+    refreshTree(tree);
+    renderView();
+};
+
+/* ------------------------------------------------------------
+   Cabecera de vista, chips de formato y cuadrícula
+   ------------------------------------------------------------ */
+
+// Actualiza el título, el subtítulo y el contador de la vista
+// según el estado de navegación, los filtros y la búsqueda.
+const renderHeader = (files) => {
+    const title = $("#viewTitle");
+    const subtitle = $("#viewSub");
+    const counter = $("#viewCount");
+
+    const selectedFormats = [...state.formats];
+    const selectedCount = selectedFormats.length;
+    const formatsTitle = () => selectedFormats.map((ext) => formatInfo(ext).label).sort().join(" + ");
+    const pluralize = (count, singular, plural) => (count === 1 ? singular : plural);
+
+    let titleText = "Tots els fitxers";
+    let subtitleText = "";
+
+    if (state.module && selectedCount > 0) {
+        titleText = formatsTitle();
+        subtitleText = `${COURSE_NAMES[state.course]} · ${getModule(state.course, state.module).label}`;
+    } else if (state.module) {
+        const mod = getModule(state.course, state.module);
+        titleText = mod.label;
+        subtitleText = `${COURSE_NAMES[state.course]} · ${mod.extensions.length} ${pluralize(mod.extensions.length, "format", "formats")}`;
+    } else if (state.course) {
+        titleText = COURSE_NAMES[state.course];
+        subtitleText = `${modulesByCourse[state.course].length} ${pluralize(modulesByCourse[state.course].length, "mòdul", "mòduls")}`;
+        if (selectedCount > 0) subtitleText += ` · ${selectedCount} ${pluralize(selectedCount, "format seleccionat", "formats seleccionats")}`;
+    } else if (selectedCount > 0) {
+        titleText = formatsTitle();
+        subtitleText = `${selectedCount} ${pluralize(selectedCount, "format seleccionat", "formats seleccionats")} a tots els cursos`;
     } else {
-      const pre = crea("pre", { class: "code-view" }, []);
-      const code = crea("code", {});
-      code.textContent = text;
-      pre.append(code);
-      visor.append(pre);
+        subtitleText = "Visor dels materials del CFGS Desenvolupament d'Aplicacions Web";
     }
-  } catch (_) {
-    if (token !== peticio) return;
-    visor.textContent = "";
-    const marc = crea("iframe", { class: "visor-frame", title: f.nom });
-    marc.src = url;
-    visor.append(marc);
-  }
+
+    if (state.query) {
+        subtitleText = subtitleText
+            ? `${subtitleText} · cerca «${state.query.trim()}»`
+            : `Cerca: «${state.query.trim()}»`;
+    }
+
+    title.textContent = titleText;
+    subtitle.textContent = subtitleText;
+    counter.textContent = `${files.length.toLocaleString("ca-ES")} fitxers`;
 };
 
-const modalOberta = () => !$("#modal").classList.contains("hidden");
+// Dibuja los chips de formato con su contador de ficheros; los
+// chips activos quedan marcados y son combinables entre sí.
+const renderChips = (files) => {
+    const chips = $("#chips");
+    chips.textContent = "";
 
-const hrefFitxer = (m, f) => `${m.base ? `${m.base}/` : ""}${encamina(f.rel)}`;
+    const counts = {};
+    for (const file of files) counts[file.ext] = (counts[file.ext] || 0) + 1;
+    const extensions = Object.keys(counts).sort(
+        (a, b) => counts[b] - counts[a] || formatInfo(a).label.localeCompare(formatInfo(b).label)
+    );
 
-const obreModal = async (i) => {
-  const f = llistaActual[i];
-  if (!f) return;
-
-  idxActual = i;
-  peticio += 1;
-  const token = peticio;
-
-  const info = infoFormat(f.ext);
-  const m = modulDe(f.curs, f.modulId);
-  const ruta = `${CURSA[f.curs].nom} · ${m.codi ? `${m.codi} · ` : ""}${f.modul}`;
-
-  $("#modalKicker").textContent = `${info.label} · ${formatBytes(f.mida)}`;
-  $("#modalTitle").textContent = f.nom;
-  $("#modalTitle").title = f.rel;
-  $("#modalSub").textContent = ruta;
-  $("#modalPath").textContent = f.rel;
-  $("#modalPath").title = f.rel;
-
-  const open = $("#modalOpen");
-  const download = $("#modalDownload");
-  open.href = "#";
-  download.href = "#";
-  download.download = f.nom;
-
-  $("#modal").classList.remove("hidden");
-  document.body.classList.add("modal-open");
-
-  const visor = $("#visor");
-  visor.textContent = "";
-  visor.append(crea("p", { class: "visor-loading", text: "Carregant…" }));
-
-  try {
-    const mInfo = await materialsInfo;
-    if (token !== peticio) return;
-    open.href = hrefFitxer(mInfo, f);
-    download.href = hrefFitxer(mInfo, f);
-    await renderVisor(f, mInfo, token);
-  } catch (_) {
-    if (token !== peticio) return;
-    visor.textContent = "";
-    visor.append(contingutNoDisponible(f));
-  }
-
-  actualitzaNav();
-  $("#modalClose").focus();
+    for (const ext of extensions) {
+        const info = formatInfo(ext);
+        const active = state.formats.has(ext);
+        chips.append(
+            createEl(
+                "button",
+                {
+                    type: "button",
+                    class: `chip${active ? " active" : ""}`,
+                    dataset: { ext },
+                    style: { "--c": info.color },
+                    "aria-pressed": active ? "true" : "false",
+                },
+                [
+                    createEl("span", { class: "chip-dot", "aria-hidden": "true" }),
+                    createEl("span", { class: "chip-lbl", text: info.label }),
+                    createEl("span", { class: "chip-count", text: String(counts[ext]) }),
+                ]
+            )
+        );
+    }
 };
 
-const tancaModal = () => {
-  if (!modalOberta()) return;
-  peticio += 1;
-  $("#modal").classList.add("hidden");
-  document.body.classList.remove("modal-open");
-  $("#visor").textContent = "";
+// Dibuja la cuadrícula de tarjetas de ficheros. Cada tarjeta es
+// cuadrada y muestra el formato en el área visual y, en el pie,
+// el módulo y el nombre del fichero.
+const renderGrid = (files) => {
+    const grid = $("#grid");
+    grid.textContent = "";
+    const query = state.query.trim();
+
+    files.forEach((file, index) => {
+        const info = formatInfo(file.ext);
+        const textColor = textColorFor(info.color);
+
+        const moduleEl = createEl("span", { class: "card-module" });
+        highlightText(moduleEl, file.module, query);
+        const nameEl = createEl("span", { class: "card-name" });
+        highlightText(nameEl, file.name, query);
+
+        const card = createEl(
+            "button",
+            {
+                type: "button",
+                class: "card",
+                dataset: { index: String(index), ext: file.ext },
+                title: `${file.name} · ${file.module}`,
+                "aria-label": `Veure ${file.name} (${info.label})`,
+            },
+            [
+                createEl("span", { class: "card-visual", style: { "--c": info.color, "--tc": textColor } }, [
+                    createEl("span", { class: "card-ext", text: info.label }),
+                    createEl("span", { class: "card-size", text: formatBytes(file.size) }),
+                ]),
+                createEl("span", { class: "card-foot" }, [moduleEl, nameEl]),
+            ]
+        );
+        grid.append(card);
+    });
 };
 
-const actualitzaNav = () => {
-  const prev = $("#modalPrev");
-  const next = $("#modalNext");
-  prev.disabled = idxActual <= 0;
-  next.disabled = idxActual >= llistaActual.length - 1;
-  $("#modalPos").textContent =
-    llistaActual.length > 1 ? `${idxActual + 1} / ${llistaActual.length}` : "";
+// Muestra u oculta el aviso de "sin resultados" y adapta su
+// mensaje según el motivo (sin inventario, búsqueda o filtros).
+const renderEmpty = (files) => {
+    const empty = $("#empty");
+    if (files.length === 0) {
+        empty.classList.remove("hidden");
+        const message = $("#emptyMsg");
+        if (FILES.length === 0) {
+            message.textContent = "No s'ha pogut carregar l'inventari (data/files.js).";
+        } else if (state.query) {
+            message.textContent = `No s'han trobat resultats per a «${state.query.trim()}». Prova amb un altre text o treu filtres.`;
+        } else {
+            message.textContent = "No s'han trobat fitxers amb aquests filtres.";
+        }
+    } else {
+        empty.classList.add("hidden");
+    }
+};
+
+// Renderiza la vista completa a partir del estado actual.
+const renderView = () => {
+    currentList = applyFilters();
+    renderHeader(currentList);
+    renderChips(contextFiles());
+    renderGrid(currentList);
+    renderEmpty(currentList);
 };
 
 /* ------------------------------------------------------------
-   Cercador
+   Contenido auxiliar del visor (modal)
    ------------------------------------------------------------ */
-const inputCerca = () => $("#searchInput");
 
-const actualitzaCerca = () => {
-  $("#searchClear").classList.toggle("hidden", inputCerca().value === "");
+// Aviso que se muestra cuando la carpeta de materiales no es
+// accesible desde esta instalación.
+const unavailableContent = (file) =>
+    createEl("div", { class: "alert" }, [
+        createEl("p", {}, [createEl("strong", { text: "El fitxer no és accessible des d'aquesta instal·lació." })]),
+        createEl("p", {
+            text: "Els materials no es publiquen al repositori: les targetes només obren els fitxers reals quan la carpeta de materials és accessible des de la mateixa màquina o servidor.",
+        }),
+    ]);
+
+// Ficha informativa para formatos de Office que el navegador no
+// puede previsualizar directamente.
+const officeContent = (info) => {
+    const textColor = textColorFor(info.color);
+    return createEl("div", { class: "office" }, [
+        createEl("div", { class: "office-icon", style: { "--c": info.color, "--tc": textColor } }, [
+            createEl("span", { text: info.label }),
+        ]),
+        createEl("div", { class: "office-text" }, [
+            createEl("p", { text: `Aquest format (${info.label}) no es pot previsualitzar directament al navegador.` }),
+            createEl("p", { class: "office-hint", text: "Baixa'l i obre'l amb l'aplicació corresponent." }),
+        ]),
+    ]);
 };
 
-let debounce;
+// Rechaza URL con esquemas peligrosos (javascript:, data:…).
+const safeHref = (url) => {
+    const trimmed = String(url).trim();
+    if (/^(javascript|data|vbscript):/i.test(trimmed)) return null;
+    return trimmed;
+};
 
 /* ------------------------------------------------------------
-   Arrencada
+   Mini renderizador de Markdown (sin librerías externas)
    ------------------------------------------------------------ */
-const inici = () => {
-  const arbre = $("#tree");
 
-  construirArbre(arbre);
-  renderResum();
-  renderVista();
+// Divide el texto en fragmentos inline (negritas, código, cursiva
+// y enlaces) para procesarlos uno a uno.
+const splitInline = (text) => {
+    const parts = [];
+    const regex = /(\*\*[^*]+\*\*|`[^`]+`|\*[^*]+\*|\[[^\]]+\]\([^)\s]+\))/g;
+    let lastIndex = 0;
+    let match;
+    while ((match = regex.exec(text))) {
+        if (match.index > lastIndex) parts.push(text.slice(lastIndex, match.index));
+        parts.push(match[0]);
+        lastIndex = match.index + match[0].length;
+    }
+    if (lastIndex < text.length) parts.push(text.slice(lastIndex));
+    return parts;
+};
 
-  /* navegació */
-  arbre.addEventListener("click", (e) => clicArbre(arbre, e));
+// Convierte los fragmentos inline de Markdown en nodos DOM:
+// **negrita**, `código`, *cursiva* y [enlace](url).
+const renderInlineMarkdown = (text) => {
+    const fragment = document.createDocumentFragment();
+    for (const part of splitInline(String(text))) {
+        if (part.startsWith("**") && part.endsWith("**") && part.length > 4) {
+            fragment.append(createEl("strong", {}, [part.slice(2, -2)]));
+        } else if (part.startsWith("`") && part.endsWith("`") && part.length > 2) {
+            fragment.append(createEl("code", {}, [part.slice(1, -1)]));
+        } else if (part.startsWith("*") && part.endsWith("*") && part.length > 2) {
+            fragment.append(createEl("em", {}, [part.slice(1, -1)]));
+        } else if (part.startsWith("[")) {
+            const close = part.indexOf("](");
+            const href = close > 0 && part.endsWith(")") ? safeHref(part.slice(close + 2, -1)) : null;
+            if (close > 0 && href != null) {
+                fragment.append(createEl("a", { href, target: "_blank", rel: "noopener" }, [part.slice(1, close)]));
+            } else {
+                fragment.append(part);
+            }
+        } else {
+            fragment.append(part);
+        }
+    }
+    return fragment;
+};
 
-  /* chips */
-  $("#chips").addEventListener("click", (e) => {
-    const btn = e.target.closest("[data-ext]");
-    if (!btn) return;
-    const ext = btn.dataset.ext;
-    if (estat.formats.has(ext)) estat.formats.delete(ext);
-    else estat.formats.add(ext);
-    actualitzaArbre(arbre);
-    renderVista();
-  });
+// Convierte un documento Markdown completo en un <article> DOM:
+// títulos, listas, citas, bloques de código, hr y párrafos.
+const renderMarkdown = (text) => {
+    const article = createEl("article", { class: "md-view" });
+    const lines = String(text).replace(/\r\n?/g, "\n").split("\n");
 
-  /* graella -> visor */
-  $("#grid").addEventListener("click", (e) => {
-    const btn = e.target.closest(".card");
-    if (!btn) return;
-    obreModal(Number(btn.dataset.i));
-  });
+    // Bloques abiertos que deben cerrarse antes del siguiente
+    // bloque de otro tipo.
+    let openList = null; // { tag: 'ul'|'ol', el: <ul>|<ol> }
+    let openQuote = null; // <blockquote>
+    let openCode = null; // <code> dentro de un <pre>
 
-  /* cercador */
-  const input = inputCerca();
-  input.addEventListener("input", () => {
-    clearTimeout(debounce);
-    debounce = setTimeout(() => {
-      estat.q = input.value;
-      renderVista();
-    }, DEBOUNCE_MS);
-  });
+    const closeList = () => {
+        openList = null;
+    };
 
-  input.addEventListener("keydown", (e) => {
-    if (e.key === KEYS.ESCAPE) {
-      if (input.value !== "") {
+    for (const rawLine of lines) {
+        const line = rawLine.trimEnd();
+
+        // Contenido de un bloque de código abierto con ```.
+        if (openCode) {
+            if (/^```/.test(line.trim())) {
+                openCode = null;
+                continue;
+            }
+            openCode.append(`${line}\n`);
+            continue;
+        }
+
+        // Apertura de un bloque de código con ```.
+        if (/^```/.test(line.trim())) {
+            closeList();
+            openQuote = null;
+            const pre = createEl("pre", {}, []);
+            openCode = createEl("code", {});
+            pre.append(openCode);
+            article.append(pre);
+            continue;
+        }
+
+        // Títulos (# .. ######).
+        const heading = line.match(/^(#{1,6})\s+(.*)$/);
+        if (heading) {
+            closeList();
+            openQuote = null;
+            article.append(createEl(`h${heading[1].length}`, {}, [renderInlineMarkdown(heading[2])]));
+            continue;
+        }
+
+        // Línea separadora (---, ***, ___).
+        if (/^\s*([-*_])\1{2,}\s*$/.test(line)) {
+            closeList();
+            openQuote = null;
+            article.append(createEl("hr"));
+            continue;
+        }
+
+        // Listas desordenadas y ordenadas.
+        const unordered = line.match(/^\s*[-*+]\s+(.*)$/);
+        const ordered = line.match(/^\s*\d+\.\s+(.*)$/);
+        if (unordered || ordered) {
+            openQuote = null;
+            const tag = unordered ? "ul" : "ol";
+            if (!openList || openList.tag !== tag) {
+                closeList();
+                openList = { tag, el: createEl(tag) };
+                article.append(openList.el);
+            }
+            openList.el.append(createEl("li", {}, [renderInlineMarkdown(unordered ? unordered[1] : ordered[1])]));
+            continue;
+        }
+
+        // Citas en bloque (> …).
+        const quote = line.match(/^\s*>\s?(.*)$/);
+        if (quote) {
+            closeList();
+            if (!openQuote) {
+                openQuote = createEl("blockquote");
+                article.append(openQuote);
+            }
+            openQuote.append(createEl("p", {}, [renderInlineMarkdown(quote[1])]));
+            continue;
+        }
+
+        // Línea en blanco: cierra los bloques abiertos.
+        if (line.trim() === "") {
+            closeList();
+            openQuote = null;
+            continue;
+        }
+
+        // Párrafo normal.
+        closeList();
+        openQuote = null;
+        article.append(createEl("p", {}, [renderInlineMarkdown(line)]));
+    }
+    return article;
+};
+
+/* ------------------------------------------------------------
+   Visor de ficheros (modal)
+   ------------------------------------------------------------ */
+
+// Devuelve la URL completa de un fichero a partir de la base de
+// materiales detectada y de su ruta relativa en el inventario.
+const fileUrl = (base, file) => `${base ? `${base}/` : ""}${encodePath(file.path)}`;
+
+// Crea un iframe para previsualizar un fichero en el visor.
+const viewerFrame = (title, url) => {
+    const frame = createEl("iframe", { class: "viewer-frame", title });
+    frame.src = url;
+    return frame;
+};
+
+// Rellena el visor con el contenido adecuado al tipo de fichero.
+// El token evita que una petición antigua pise al fichero actual.
+const renderViewer = async (file, materials, token) => {
+    const viewer = $("#viewer");
+    viewer.textContent = "";
+    viewer.append(createEl("p", { class: "viewer-loading", text: "Carregant…" }));
+
+    const info = formatInfo(file.ext);
+    const url = fileUrl(materials.base, file);
+    const type = info.viewer;
+
+    // Sin acceso a la carpeta de materiales: aviso informativo.
+    if (!materials.ok) {
+        viewer.textContent = "";
+        viewer.append(unavailableContent(file));
+        return;
+    }
+
+    // PDF y HTML se incrustan directamente con el visor nativo.
+    if (type === "pdf" || type === "html") {
+        viewer.textContent = "";
+        viewer.append(viewerFrame(file.name, url));
+        return;
+    }
+
+    // Imágenes: se muestran escaladas; si falla la carga, aviso.
+    if (type === "image") {
+        viewer.textContent = "";
+        const image = createEl("img", { class: "viewer-img", alt: file.name });
+        image.src = url;
+        image.addEventListener(
+            "error",
+            () => {
+                if (token === requestToken) {
+                    viewer.textContent = "";
+                    viewer.append(unavailableContent(file));
+                }
+            },
+            { once: true }
+        );
+        viewer.append(image);
+        return;
+    }
+
+    // Audio: reproductor nativo del navegador.
+    if (type === "audio") {
+        viewer.textContent = "";
+        const audio = createEl("audio", { controls: "", preload: "metadata" });
+        audio.src = url;
+        viewer.append(
+            createEl("div", { class: "audio-wrap" }, [
+                audio,
+                createEl("p", { class: "audio-note", text: `Àudio ${info.label} · ${formatBytes(file.size)}` }),
+            ])
+        );
+        return;
+    }
+
+    // Office y formatos desconocidos: ficha con la acción a seguir.
+    if (type === "office" || type === "file") {
+        viewer.textContent = "";
+        viewer.append(officeContent(info));
+        return;
+    }
+
+    // Texto, código y Markdown: si el fichero es enorme se abre en
+    // un iframe en lugar de descargarlo entero por fetch.
+    if ((file.size || 0) >= TEXT_PREVIEW_LIMIT) {
+        viewer.textContent = "";
+        viewer.append(viewerFrame(file.name, url));
+        return;
+    }
+
+    try {
+        const response = await fetch(url);
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const content = await response.text();
+        if (token !== requestToken) return;
+        viewer.textContent = "";
+        if (file.ext === "md") {
+            viewer.append(renderMarkdown(content));
+        } else {
+            const pre = createEl("pre", { class: "code-view" }, []);
+            const code = createEl("code", {});
+            code.textContent = content;
+            pre.append(code);
+            viewer.append(pre);
+        }
+    } catch (_) {
+        // Si el fetch falla (p. ej. CORS local), se intenta abrir
+        // el fichero directamente en un iframe.
+        if (token !== requestToken) return;
+        viewer.textContent = "";
+        viewer.append(viewerFrame(file.name, url));
+    }
+};
+
+// Indica si el modal del visor está abierto.
+const isModalOpen = () => !$("#modal").classList.contains("hidden");
+
+// Abre el modal con el fichero que ocupa la posición "index" de
+// la lista filtrada actual.
+const openModal = async (index) => {
+    const file = currentList[index];
+    if (!file) return;
+
+    currentIndex = index;
+    requestToken += 1;
+    const token = requestToken;
+
+    const info = formatInfo(file.ext);
+    const mod = getModule(file.course, file.moduleId);
+    const route = `${COURSE_NAMES[file.course]} · ${mod.code ? `${mod.code} · ` : ""}${file.module}`;
+
+    $("#modalKicker").textContent = `${info.label} · ${formatBytes(file.size)}`;
+    $("#modalTitle").textContent = file.name;
+    $("#modalTitle").title = file.path;
+    $("#modalSub").textContent = route;
+    $("#modalPath").textContent = file.path;
+    $("#modalPath").title = file.path;
+
+    // Los enlaces se rellenan al conocer la base de materiales.
+    const openLink = $("#modalOpen");
+    const downloadLink = $("#modalDownload");
+    openLink.href = "#";
+    downloadLink.href = "#";
+    downloadLink.download = file.name;
+
+    $("#modal").classList.remove("hidden");
+    document.body.classList.add("modal-open");
+
+    const viewer = $("#viewer");
+    viewer.textContent = "";
+
+    try {
+        const materials = await materialsProbe;
+        if (token !== requestToken) return;
+        openLink.href = fileUrl(materials.base, file);
+        downloadLink.href = fileUrl(materials.base, file);
+        await renderViewer(file, materials, token);
+    } catch (_) {
+        if (token !== requestToken) return;
+        viewer.textContent = "";
+        viewer.append(unavailableContent(file));
+    }
+
+    refreshNavButtons();
+    $("#modalClose").focus();
+};
+
+// Cierra el modal y limpia el visor.
+const closeModal = () => {
+    if (!isModalOpen()) return;
+    requestToken += 1;
+    $("#modal").classList.add("hidden");
+    document.body.classList.remove("modal-open");
+    $("#viewer").textContent = "";
+};
+
+// Actualiza los botones anterior/siguiente y el contador de
+// posición del modal según el fichero abierto.
+const refreshNavButtons = () => {
+    const prev = $("#modalPrev");
+    const next = $("#modalNext");
+    prev.disabled = currentIndex <= 0;
+    next.disabled = currentIndex >= currentList.length - 1;
+    $("#modalPos").textContent = currentList.length > 1 ? `${currentIndex + 1} / ${currentList.length}` : "";
+};
+
+/* ------------------------------------------------------------
+   Buscador
+   ------------------------------------------------------------ */
+
+const searchInputEl = () => $("#searchInput");
+
+// Muestra u oculta el botón de limpiar según haya texto escrito.
+const refreshSearchClear = () => {
+    $("#searchClear").classList.toggle("hidden", searchInputEl().value === "");
+};
+
+// Temporizador del retardo de la búsqueda (debounce).
+let debounceTimer;
+
+/* ------------------------------------------------------------
+   Arranque de la aplicación
+   ------------------------------------------------------------ */
+
+// Inicializa la interfaz: árbol, resumen, vista y todos los
+// manejadores de eventos.
+const init = () => {
+    const tree = $("#tree");
+
+    buildTree(tree);
+    renderSummary();
+    renderView();
+
+    // Navegación por el árbol lateral.
+    tree.addEventListener("click", (event) => handleTreeClick(tree, event));
+
+    // Clicks sobre los chips de formato (se combinan entre sí).
+    $("#chips").addEventListener("click", (event) => {
+        const button = event.target.closest("[data-ext]");
+        if (!button) return;
+        const ext = button.dataset.ext;
+        if (state.formats.has(ext)) state.formats.delete(ext);
+        else state.formats.add(ext);
+        refreshTree(tree);
+        renderView();
+    });
+
+    // Clicks sobre las tarjetas: abren el visor del fichero.
+    $("#grid").addEventListener("click", (event) => {
+        const card = event.target.closest(".card");
+        if (!card) return;
+        openModal(Number(card.dataset.index));
+    });
+
+    // Escritura en el buscador con retardo (debounce).
+    const input = searchInputEl();
+    input.addEventListener("input", () => {
+        clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(() => {
+            state.query = input.value;
+            renderView();
+        }, DEBOUNCE_MS);
+    });
+
+    // Escape dentro del buscador: limpia o quita el foco.
+    input.addEventListener("keydown", (event) => {
+        if (event.key === KEYS.ESCAPE) {
+            if (input.value !== "") {
+                input.value = "";
+                state.query = "";
+                renderView();
+            } else {
+                input.blur();
+            }
+        }
+    });
+
+    // Botón de limpiar la búsqueda.
+    $("#searchClear").addEventListener("click", () => {
         input.value = "";
-        estat.q = "";
-        renderVista();
-      } else {
-        input.blur();
-      }
-    }
-  });
+        state.query = "";
+        renderView();
+        input.focus();
+    });
 
-  $("#searchClear").addEventListener("click", () => {
-    input.value = "";
-    estat.q = "";
-    renderVista();
-    input.focus();
-  });
+    // Botón "Mostra-ho tot" del estado vacío.
+    $("#emptyReset").addEventListener("click", () => {
+        resetNavigation();
+        input.value = "";
+        state.query = "";
+        refreshTree(tree);
+        renderView();
+    });
 
-  $("#emptyReset").addEventListener("click", () => {
-    resetNavegacio();
-    input.value = "";
-    estat.q = "";
-    actualitzaArbre(arbre);
-    renderVista();
-  });
+    // Modal: cierre por botón, fondo o teclado.
+    $("#modalClose").addEventListener("click", closeModal);
+    $("#modal").querySelector("[data-close]").addEventListener("click", closeModal);
+    $("#modalPrev").addEventListener("click", () => {
+        if (currentIndex > 0) openModal(currentIndex - 1);
+    });
+    $("#modalNext").addEventListener("click", () => {
+        if (currentIndex < currentList.length - 1) openModal(currentIndex + 1);
+    });
 
-  /* visor: botons i teclat */
-  $("#modalClose").addEventListener("click", tancaModal);
-  $("#modal").querySelector("[data-tanca]").addEventListener("click", tancaModal);
-  $("#modalPrev").addEventListener("click", () => {
-    if (idxActual > 0) obreModal(idxActual - 1);
-  });
-  $("#modalNext").addEventListener("click", () => {
-    if (idxActual < llistaActual.length - 1) obreModal(idxActual + 1);
-  });
+    // Atajos globales de teclado: con el modal abierto, Escape lo
+    // cierra y las flechas cambian de fichero; con "/" se enfoca
+    // el buscador (salvo que el foco ya esté en un campo de texto).
+    document.addEventListener("keydown", (event) => {
+        if (isModalOpen()) {
+            if (event.key === KEYS.ESCAPE) {
+                closeModal();
+            } else if (event.key === KEYS.ARROW_LEFT && currentIndex > 0) {
+                openModal(currentIndex - 1);
+            } else if (event.key === KEYS.ARROW_RIGHT && currentIndex < currentList.length - 1) {
+                openModal(currentIndex + 1);
+            }
+            return;
+        }
+        if (event.key === KEYS.SLASH) {
+            const active = document.activeElement;
+            if (active && (/^(INPUT|TEXTAREA|SELECT)$/.test(active.tagName) || active.isContentEditable)) return;
+            event.preventDefault();
+            input.focus();
+            input.select();
+        }
+    });
 
-  document.addEventListener("keydown", (e) => {
-    if (modalOberta()) {
-      if (e.key === KEYS.ESCAPE) {
-        tancaModal();
-      } else if (e.key === KEYS.FLETXA_ESQUERRA && idxActual > 0) {
-        obreModal(idxActual - 1);
-      } else if (e.key === KEYS.FLETXA_DRETA && idxActual < llistaActual.length - 1) {
-        obreModal(idxActual + 1);
-      }
-      return;
-    }
-    if (e.key === KEYS.BARRA) {
-      const actiu = document.activeElement;
-      if (actiu && (/^(INPUT|TEXTAREA|SELECT)$/.test(actiu.tagName) || actiu.isContentEditable)) return;
-      e.preventDefault();
-      input.focus();
-      input.select();
-    }
-  });
-
-  actualitzaCerca();
+    refreshSearchClear();
 };
 
+// Arranque automático cuando se ejecuta en un navegador (el
+// guardado permite importar el módulo desde Node para pruebas).
 if (typeof document !== "undefined" && typeof document.createElement === "function") {
-  inici();
+    init();
 }
