@@ -110,7 +110,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         "--materials",
-        default="/home/jeironpro/Descargas/desenvolupament_aplicacions_web",
+        default="./",
         help="carpeta raíz de los materiales (contiene moduls_1er_... y moduls_2n_...)",
     )
     parser.add_argument("--out", default="data/files.js", help="fichero de salida")
