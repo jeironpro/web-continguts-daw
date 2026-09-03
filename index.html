@@ -14,7 +14,7 @@
 <body>
     <!-- Panel lateral: marca, selector de idioma y árbol. -->
     <div class="app">
-        <aside class="sidebar">
+        <aside class="sidebar" id="sidebar">
             <header class="brand">
                 <div class="brand-mark" aria-hidden="true">C</div>
                 <div class="brand-text">
@@ -30,7 +30,7 @@
                 <button type="button" class="lang-btn" data-lang="en" aria-pressed="false">EN</button>
             </div>
 
-            <nav class="tree" id="tree" data-i18n-aria="tree.aria" aria-label="Navegació per cursos i mòduls"></nav>
+            <nav class="tree" id="tree" tabindex="-1" data-i18n-aria="tree.aria" aria-label="Navegació per cursos i mòduls"></nav>
         </aside>
 
         <!-- Área principal: buscador, resumen, chips y cuadrícula. -->
@@ -38,8 +38,21 @@
             <div class="main-inner">
                 <header class="main-head">
                     <div class="head-text">
-                        <h2 class="view-title" id="viewTitle" data-i18n="tree.allFiles">Tots els fitxers</h2>
-                        <p class="view-sub" id="viewSub"></p>
+                        <!-- Botón de menú: abre/cierra el cajón del panel
+                             lateral en móvil (oculto en pantallas grandes). -->
+                        <button type="button" class="menu-btn" id="menuBtn"
+                                aria-controls="sidebar" aria-expanded="false"
+                                data-i18n-aria="sidebar.toggle" aria-label="Menú de navegació">
+                            <svg class="menu-ico" viewBox="0 0 20 20" aria-hidden="true">
+                                <line class="menu-line menu-line-a" x1="3" y1="6" x2="17" y2="6"/>
+                                <line class="menu-line menu-line-b" x1="3" y1="10" x2="17" y2="10"/>
+                                <line class="menu-line menu-line-c" x1="3" y1="14" x2="17" y2="14"/>
+                            </svg>
+                        </button>
+                        <div class="head-titles">
+                            <h2 class="view-title" id="viewTitle" data-i18n="tree.allFiles">Tots els fitxers</h2>
+                            <p class="view-sub" id="viewSub"></p>
+                        </div>
                     </div>
                     <div class="search" role="search" data-i18n-aria="search.region" aria-label="Cerca">
                         <svg class="search-ico" viewBox="0 0 20 20" aria-hidden="true">
@@ -69,6 +82,10 @@
                 </div>
             </div>
         </main>
+
+        <!-- Fondo oscuro del cajón lateral en móvil: cierra el panel
+             al hacer clic fuera de él. -->
+        <div class="sidebar-backdrop" id="sidebarBackdrop" aria-hidden="true"></div>
     </div>
 
     <!-- Modal del visor de ficheros. -->

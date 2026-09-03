@@ -47,6 +47,7 @@
     "unavailable.title": "This file is not accessible from this installation.",
     "unavailable.body": "The file could not be reached from this installation. Serve the web with an HTTP server from the project folder so the cards can open the materials.",
     "lang.group": "Interface language",
+    "sidebar.toggle": "Navigation menu",
     "fmt.pdf": "PDF",
     "fmt.doc": "Word (DOC)",
     "fmt.docx": "Word",

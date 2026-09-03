@@ -16,7 +16,9 @@ Está construida con HTML, CSS y JavaScript en módulos ES, sin dependencias ext
 - Filtros combinables por formato (chips de color).
 - Visor de ficheros en modal con navegación entre resultados.
 - Interfaz en catalán, español e inglés con selector de idioma.
-- Diseño responsive (mobile-first).
+- Diseño responsive (mobile-first): en móvil el panel lateral se oculta
+  tras un cajón animado con botón de menú, fondo oscuro y cierre con
+  Escape o al elegir una opción.
 
 ## Idiomas de la interfaz
 

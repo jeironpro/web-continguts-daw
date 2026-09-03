@@ -546,6 +546,9 @@ const handleTreeClick = (tree, event) => {
             }
             refreshTree(tree);
             renderView(true);
+            // En móvil, elegir una opción cierra el cajón para ver
+            // los resultados a pantalla completa.
+            if (isSidebarOpen()) closeSidebar();
             return;
         }
         state.course = course;
@@ -585,6 +588,9 @@ const handleTreeClick = (tree, event) => {
     }
     refreshTree(tree);
     renderView(true);
+    // En móvil, elegir una opción cierra el cajón para ver los
+    // resultados a pantalla completa.
+    if (isSidebarOpen()) closeSidebar();
 };
 
 /* ------------------------------------------------------------
@@ -1269,6 +1275,37 @@ const refreshSearchClear = () => {
 let debounceTimer;
 
 /* ------------------------------------------------------------
+   Cajón lateral (móvil)
+   ------------------------------------------------------------ */
+
+// Elemento contenedor de toda la aplicación (recibe la clase que
+// abre y cierra el cajón del panel lateral).
+const appEl = () => document.querySelector(".app");
+
+// Indica si el cajón del panel lateral está abierto (solo aplica
+// en móvil; en pantallas grandes el panel es siempre visible).
+const isSidebarOpen = () => appEl().classList.contains("sidebar-open");
+
+// Cierra el cajón: quita las clases y sincroniza aria-expanded.
+const closeSidebar = () => {
+    const app = appEl();
+    if (!app.classList.contains("sidebar-open")) return;
+    app.classList.remove("sidebar-open");
+    document.body.classList.remove("sidebar-open");
+    const button = $("#menuBtn");
+    if (button) button.setAttribute("aria-expanded", "false");
+};
+
+// Abre el cajón y lleva el foco al árbol de navegación para que el
+// teclado pueda recorrer las opciones desde el principio.
+const openSidebar = () => {
+    appEl().classList.add("sidebar-open");
+    document.body.classList.add("sidebar-open");
+    $("#menuBtn").setAttribute("aria-expanded", "true");
+    $("#tree").focus();
+};
+
+/* ------------------------------------------------------------
    Arranque de la aplicación
    ------------------------------------------------------------ */
 
@@ -1305,6 +1342,23 @@ const init = async () => {
     for (const button of $$(".lang-btn")) {
         button.addEventListener("click", () => changeLanguage(button.dataset.lang));
     }
+
+    // Cajón lateral en móvil: el botón de menú abre y cierra el
+    // panel; el fondo oscuro también lo cierra.
+    $("#menuBtn").addEventListener("click", () => {
+        if (isSidebarOpen()) closeSidebar();
+        else openSidebar();
+    });
+    $("#sidebarBackdrop").addEventListener("click", () => {
+        closeSidebar();
+        $("#menuBtn").focus();
+    });
+
+    // Al pasar a pantalla grande el cajón deja de aplicarse: se
+    // limpia el estado para que al volver a móvil empiece cerrado.
+    window.matchMedia("(min-width: 921px)").addEventListener("change", (event) => {
+        if (event.matches) closeSidebar();
+    });
 
     // Navegación por el árbol lateral.
     tree.addEventListener("click", (event) => handleTreeClick(tree, event));
@@ -1389,6 +1443,12 @@ const init = async () => {
             } else if (event.key === KEYS.ARROW_RIGHT && currentIndex < currentList.length - 1) {
                 openModal(currentIndex + 1);
             }
+            return;
+        }
+        // Escape cierra el cajón lateral del móvil si está abierto.
+        if (event.key === KEYS.ESCAPE && isSidebarOpen()) {
+            closeSidebar();
+            $("#menuBtn").focus();
             return;
         }
         if (event.key === KEYS.SLASH) {

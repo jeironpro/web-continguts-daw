@@ -93,13 +93,57 @@ body {
     min-height: 100vh;
 }
 
+/* Panel lateral: en móvil es un cajón fijo que entra desde la
+   izquierda (oculto por defecto); en pantallas grandes pasa a ser
+   la columna fija de la cuadrícula (media query de 921px). */
 .sidebar {
     background: var(--cream);
-    border-bottom: var(--border);
+    border-right: var(--border);
     display: flex;
     flex-direction: column;
     gap: 16px;
     padding: 16px 14px;
+
+    /* Modo cajón (móvil): fijo y fuera de pantalla; la visibilidad
+       se retrasa al cerrar para no dejar el árbol enfocable. */
+    position: fixed;
+    inset: 0 auto 0 0;
+    width: min(320px, 86vw);
+    z-index: 50;
+    overflow-y: auto;
+    visibility: hidden;
+    transform: translateX(-105%);
+    transition: transform 260ms ease, visibility 0s linear 260ms;
+    box-shadow: 6px 0 0 var(--ink);
+}
+
+.app.sidebar-open .sidebar {
+    visibility: visible;
+    transform: translateX(0);
+    transition: transform 260ms ease, visibility 0s;
+}
+
+/* Fondo oscuro del cajón: cubre el contenido en móvil y cierra el
+   panel al hacer clic (sin eventos mientras está cerrado). */
+.sidebar-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 40;
+    background: rgba(17, 17, 17, 0.45);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 200ms ease;
+}
+
+.app.sidebar-open .sidebar-backdrop {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+/* Bloquea el desplazamiento del fondo mientras el cajón está
+   abierto en móvil (en pantallas grandes se restaura). */
+body.sidebar-open {
+    overflow: hidden;
 }
 
 .main {
@@ -212,7 +256,16 @@ body {
     margin-bottom: 20px;
 }
 
+/* Cabecera de la vista: el botón de menú (móvil) y el bloque de
+   título/subtítulo van en la misma fila, alineados verticalmente. */
 .head-text {
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.head-titles {
     min-width: 0;
 }
 
@@ -230,6 +283,61 @@ body {
     margin: 6px 0 0;
     font-size: 15px;
     color: color-mix(in srgb, var(--ink) 62%, transparent);
+}
+
+/* Botón de menú (móvil): abre y cierra el cajón del panel lateral.
+   Oculto en pantallas grandes, donde el panel es siempre visible. */
+.menu-btn {
+    appearance: none;
+    flex: 0 0 auto;
+    width: 44px;
+    height: 44px;
+    display: grid;
+    place-items: center;
+    border: var(--border-2);
+    border-radius: var(--radius-control);
+    background: var(--paper);
+    box-shadow: 3px 3px 0 var(--ink);
+    color: var(--ink);
+    cursor: pointer;
+    transition: transform 120ms ease, box-shadow 120ms ease;
+}
+
+.menu-btn:hover {
+    transform: translate(-1px, -1px);
+    box-shadow: 5px 5px 0 var(--ink);
+}
+
+.menu-btn:active {
+    transform: translate(1px, 1px);
+    box-shadow: 1px 1px 0 var(--ink);
+}
+
+.menu-ico {
+    width: 20px;
+    height: 20px;
+}
+
+/* Líneas del icono de menú: al abrir el cajón se convierten en una
+   cruz (las exteriores giran y la central desaparece). */
+.menu-line {
+    stroke: currentColor;
+    stroke-width: 2.6;
+    stroke-linecap: round;
+    transform-origin: center;
+    transition: transform 200ms ease, opacity 150ms ease;
+}
+
+.app.sidebar-open .menu-line-a {
+    transform: translateY(4px) rotate(45deg);
+}
+
+.app.sidebar-open .menu-line-b {
+    opacity: 0;
+}
+
+.app.sidebar-open .menu-line-c {
+    transform: translateY(-4px) rotate(-45deg);
 }
 
 /* ------------------------------------------------------------
@@ -644,9 +752,16 @@ mark {
 .nav-btn:focus-visible,
 .modal-close:focus-visible,
 .search-clear:focus-visible,
-.lang-btn:focus-visible {
+.lang-btn:focus-visible,
+.menu-btn:focus-visible {
     outline: 3px solid var(--cobalt);
     outline-offset: 2px;
+}
+
+/* El nav recibe foco al abrir el cajón en móvil; no se dibuja
+   anillo para no marcar todo el árbol. */
+.tree:focus {
+    outline: none;
 }
 
 .tree-btn.active {
@@ -732,6 +847,13 @@ mark {
     }
     .grid.animating .card {
         animation: none;
+    }
+    .sidebar,
+    .sidebar-backdrop {
+        transition: none;
+    }
+    .menu-line {
+        transition: none;
     }
 }
 
@@ -1303,11 +1425,28 @@ body.modal-open {
         height: 100vh;
     }
 
+    /* El panel deja el modo cajón y vuelve a ser la columna fija. */
     .sidebar {
+        position: static;
+        inset: auto;
+        width: auto;
+        transform: none;
+        visibility: visible;
         border-bottom: none;
         border-right: var(--border);
         overflow-y: auto;
         padding: 20px 16px;
+        box-shadow: none;
+    }
+
+    /* El cajón no aplica en pantallas grandes: se oculta el botón
+       de menú y se restaura el desplazamiento del cuerpo. */
+    .menu-btn {
+        display: none;
+    }
+
+    body.sidebar-open {
+        overflow: visible;
     }
 
     .main {

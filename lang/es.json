@@ -47,6 +47,7 @@
     "unavailable.title": "El archivo no es accesible desde esta instalación.",
     "unavailable.body": "No se ha podido acceder al archivo desde esta instalación. Sirve la web con un servidor HTTP desde la carpeta del proyecto para que las tarjetas puedan abrir los materiales.",
     "lang.group": "Idioma de la interfaz",
+    "sidebar.toggle": "Menú de navegación",
     "fmt.pdf": "PDF",
     "fmt.doc": "Word (DOC)",
     "fmt.docx": "Word",

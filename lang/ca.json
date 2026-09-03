@@ -47,6 +47,7 @@
     "unavailable.title": "El fitxer no és accessible des d'aquesta instal·lació.",
     "unavailable.body": "No s'ha pogut accedir al fitxer des d'aquesta instal·lació. Serveix la web amb un servidor HTTP des de la carpeta del projecte perquè les targetes puguin obrir els materials.",
     "lang.group": "Idioma de la interfície",
+    "sidebar.toggle": "Menú de navegació",
     "fmt.pdf": "PDF",
     "fmt.doc": "Word (DOC)",
     "fmt.docx": "Word",
