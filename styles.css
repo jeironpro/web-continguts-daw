@@ -165,18 +165,6 @@ body {
   color: color-mix(in srgb, var(--ink) 62%, transparent);
 }
 
-.view-count {
-  margin: 0;
-  flex: 0 0 auto;
-  background: var(--paper);
-  border: var(--border-2);
-  border-radius: 999px;
-  box-shadow: var(--shadow);
-  padding: 7px 16px;
-  font-size: 13px;
-  font-weight: 700;
-}
-
 /* ------------------------------------------------------------
    Resum (estadístiques)
    ------------------------------------------------------------ */
@@ -514,6 +502,184 @@ body {
 .btn:active {
   transform: translate(1px, 1px);
   box-shadow: 1px 1px 0 var(--ink);
+}
+
+/* ------------------------------------------------------------
+   Cercador
+   ------------------------------------------------------------ */
+
+.search {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1 1 300px;
+  max-width: 560px;
+  min-width: 260px;
+  background: var(--paper);
+  border: var(--border);
+  border-radius: 999px;
+  box-shadow: var(--shadow);
+  padding: 8px 10px 8px 18px;
+  transition: transform 120ms ease, box-shadow 120ms ease;
+}
+
+.search:focus-within {
+  transform: translate(-1px, -1px);
+  box-shadow: var(--shadow-hover);
+}
+
+.search-ico {
+  flex: 0 0 auto;
+  width: 18px;
+  height: 18px;
+  color: color-mix(in srgb, var(--ink) 55%, transparent);
+}
+
+.search input {
+  flex: 1 1 auto;
+  min-width: 0;
+  appearance: none;
+  border: none;
+  outline: none;
+  background: transparent;
+  font: inherit;
+  font-size: 15px;
+  color: var(--ink);
+}
+
+.search input::placeholder {
+  color: color-mix(in srgb, var(--ink) 45%, transparent);
+}
+
+.search input::-webkit-search-cancel-button,
+.search input::-webkit-search-decoration {
+  display: none;
+}
+
+.search kbd {
+  flex: 0 0 auto;
+  font-family: var(--font-body);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+  padding: 5px 8px;
+  border: 2px solid var(--ink);
+  border-radius: 7px;
+  background: var(--cream);
+  box-shadow: 1.5px 1.5px 0 var(--ink);
+}
+
+.search:focus-within kbd {
+  display: none;
+}
+
+.search-clear {
+  flex: 0 0 auto;
+  appearance: none;
+  width: 26px;
+  height: 26px;
+  display: grid;
+  place-items: center;
+  border: 2px solid var(--ink);
+  border-radius: 50%;
+  background: var(--cream);
+  font: inherit;
+  font-size: 12px;
+  line-height: 1;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.search-clear:hover {
+  background: var(--coral);
+  color: var(--paper);
+}
+
+/* ------------------------------------------------------------
+   Fila meta: comptador + chips de format
+   ------------------------------------------------------------ */
+
+.meta-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px 14px;
+  margin-bottom: 28px;
+}
+
+.view-count {
+  margin: 0;
+  flex: 0 0 auto;
+  background: var(--paper);
+  border: var(--border-2);
+  border-radius: 999px;
+  box-shadow: var(--shadow);
+  padding: 7px 16px;
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.chip {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 12px 5px 10px;
+  border: 2px solid var(--ink);
+  border-radius: 999px;
+  background: var(--paper);
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--ink);
+  cursor: pointer;
+  transition: transform 100ms ease, box-shadow 100ms ease, background 100ms ease;
+}
+
+.chip:hover {
+  transform: translate(-1px, -1px);
+  box-shadow: 2px 2px 0 var(--ink);
+}
+
+.chip:active {
+  transform: translate(1px, 1px);
+  box-shadow: none;
+}
+
+.chip-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--c);
+  border: 1.5px solid var(--ink);
+}
+
+.chip-count {
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  color: color-mix(in srgb, var(--ink) 55%, transparent);
+}
+
+.chip.active {
+  background: color-mix(in srgb, var(--c) 30%, var(--paper));
+}
+
+.chip.active .chip-count {
+  color: var(--ink);
+}
+
+mark {
+  background: var(--yellow);
+  color: var(--ink);
+  border-radius: 3px;
+  padding: 0 1px;
 }
 
 /* ------------------------------------------------------------
