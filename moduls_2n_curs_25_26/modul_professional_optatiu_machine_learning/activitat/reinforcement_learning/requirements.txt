@@ -1,5 +1,0 @@
-gymnasium
-pygame
-torch
-numpy
-matplotlib
