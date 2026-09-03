@@ -6,10 +6,14 @@ El objetivo es demostrar buenas prácticas de programación, organización y doc
 
 ## 🚀 Ús
 
-La web és estàtica (HTML + CSS + JS, sense dependències). L'inventari de fitxers
-(`data/fitxers.js`) es genera a partir de la carpeta de materials del professorat,
-que **no** forma part d'aquest repositori; les targetes obren els fitxers reals
-només quan els materials són accessibles des de la mateixa màquina/servidor.
+La web és estàtica (HTML + CSS + JS, sense dependències) i fa servir
+**mòduls ES** (`import`/`export`), així que cal servir-la per HTTP:
+no funciona obrir `index.html` directament amb un doble clic.
+
+L'inventari de fitxers (`data/fitxers.js`) es genera a partir de la carpeta de
+materials del professorat, que **no** forma part d'aquest repositori; les targetes
+obren els fitxers reals només quan els materials són accessibles des de la
+mateixa màquina/servidor.
 
 1. Serveix amb un servidor estàtic una carpeta que contingui tant la web com
    els materials (per exemple, la carpeta arrel de l'usuari):

@@ -2,9 +2,10 @@
 <html lang="ca">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Continguts DAW — visor de fitxers</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Continguts DAW</title>
   <meta name="description" content="Visor dels continguts del CFGS Desenvolupament d'Aplicacions Web (1r i 2n curs).">
+  <link rel="icon" type="image/svg+xml" href="favicon.svg">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=DM+Sans:ital,opsz,wght@0,9..40,300..700;1,9..40,400..600&display=swap" rel="stylesheet">
@@ -35,8 +36,9 @@
               <circle cx="8.5" cy="8.5" r="5.5" fill="none" stroke="currentColor" stroke-width="2.4"/>
               <line x1="12.8" y1="12.8" x2="17.5" y2="17.5" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>
             </svg>
+            <label class="sr-only" for="searchInput">Cerca per nom, mòdul o format</label>
             <input id="searchInput" type="search" placeholder="Cerca per nom, mòdul o format…"
-                   autocomplete="off" spellcheck="false" aria-label="Cerca per nom, mòdul o format">
+                   autocomplete="off" spellcheck="false">
             <kbd aria-hidden="true">/</kbd>
             <button type="button" class="search-clear hidden" id="searchClear" aria-label="Neteja la cerca">✕</button>
           </div>
@@ -91,7 +93,6 @@
     </div>
   </div>
 
-  <script src="data/fitxers.js"></script>
-  <script src="app.js"></script>
+  <script type="module" src="app.js"></script>
 </body>
 </html>

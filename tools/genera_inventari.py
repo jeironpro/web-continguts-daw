@@ -117,7 +117,7 @@ def main():
     capcalera = "// Generat per tools/genera_inventari.py — no editar a mà.\n"
     cos = (
         capcalera
-        + "window.FITXERS = "
+        + "export const FITXERS = "
         + json.dumps(fitxers, ensure_ascii=False, separators=(",", ":"))
         + ";\n"
     )
